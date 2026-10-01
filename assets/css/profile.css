@@ -1,0 +1,65 @@
+.profile-page {
+    max-width: 480px;
+}
+
+.back-button-inline {
+    background: none;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 0;
+    margin-bottom: 1rem;
+}
+
+.profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
+}
+
+.profile-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    color: #444;
+}
+
+.profile-form input {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.profile-avatar-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.profile-avatar-preview {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: #c9c9c9;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+}
+
+.profile-hint {
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.profile-success {
+    color: #2e7d32;
+    font-size: 0.85rem;
+}
+
+.profile-password-actions {
+    display: flex;
+    gap: 0.6rem;
+}

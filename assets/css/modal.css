@@ -1,0 +1,188 @@
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.modal-box {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    width: 600px;
+    max-width: 90vw;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+}
+
+.new-item-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.new-item-modal-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    color: #444;
+}
+
+.new-item-modal-form input {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.orientation-choice {
+    border: none;
+    padding: 0;
+    display: flex;
+    gap: 1rem;
+}
+
+.orientation-choice label {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.primary-btn {
+    background: #1e1e2f;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.4rem 0.9rem;
+    cursor: pointer;
+}
+
+.danger-btn {
+    background: #c0392b;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.4rem 0.9rem;
+    cursor: pointer;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+
+.delete-btn:hover {
+    opacity: 1;
+}
+
+.placement-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.6rem;
+}
+
+.placement-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #eef0f5;
+    border-radius: 999px;
+    padding: 0.2rem 0.3rem 0.2rem 0.7rem;
+    font-size: 0.8rem;
+    color: #333;
+}
+
+.placement-chip-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 0 0.3rem;
+}
+
+.placement-chip-remove:hover {
+    color: #c0392b;
+}
+
+.placement-picker-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.placement-picker-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    color: #444;
+}
+
+.placement-picker-form select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.item-form-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.item-form-field {
+    flex: 1;
+    min-width: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    color: #444;
+}
+
+.item-form-field input,
+.item-form-field select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.item-form-textarea {
+    width: 100%;
+    min-height: 160px;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.modal-box {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    width: 600px;
+    max-width: 90vw;
+    color: #222;
+}
+
+.modal-box h2 {
+    margin-top: 0;
+    color: #222;
+}

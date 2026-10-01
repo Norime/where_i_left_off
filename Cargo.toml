@@ -1,0 +1,23 @@
+[package]
+name = "where_i_left_off"
+version = "0.1.0"
+authors = ["Norime"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+argon2 = "0.6.0"
+dioxus = { version = "0.7.1", features = ["router"] }
+dirs = "7.0.0"
+percent-encoding = "2.3.2"
+pulldown-cmark = "0.13.4"
+reqwest = { version = "0.13.5", features = ["json"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+[features]
+default = ["desktop"]
+web = ["dioxus/web"]
+desktop = ["dioxus/desktop"]
+mobile = ["dioxus/mobile"]

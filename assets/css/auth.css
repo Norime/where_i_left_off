@@ -1,0 +1,113 @@
+.auth-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: #f4f4f8;
+}
+
+.auth-box {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 320px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.auth-hint {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.auth-error {
+    color: #c0392b;
+    font-size: 0.85rem;
+}
+
+.account-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+    margin: 1rem 0 1.5rem;
+}
+
+.account-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 90px;
+    text-align: center;
+}
+
+.account-avatar {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background-color: #c9c9c9;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.account-avatar:hover {
+    border-color: #1e1e2f;
+}
+
+.account-avatar--add {
+    background: none;
+    border: 2px dashed #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+}
+
+.account-avatar--add .add-icon {
+    font-size: 1.8rem;
+}
+
+.account-name {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: #333;
+    cursor: pointer;
+    word-break: break-word;
+}
+
+.password-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -2px;
+    background: #f1c40f;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    border: 2px solid white;
+}
+
+.account-avatar .delete-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.account-avatar:hover .delete-btn {
+    opacity: 1;
+}

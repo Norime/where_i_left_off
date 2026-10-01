@@ -1,0 +1,351 @@
+.category-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem;
+    margin-left: 0.25rem;
+}
+
+.source-search { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+.source-result-list { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.source-result-item {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+}
+.source-result-item:hover { background: #f2f2f2; }
+
+.source-list { list-style: none; padding: 0; margin: 0.5rem 0; }
+.source-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eee;
+}
+.source-list-actions { display: flex; gap: 0.5rem; }
+
+.source-editor { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; border-top: 1px solid #eee; padding-top: 1rem; }
+.source-field-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.source-test-preview { background: #f7f7f7; border-radius: 6px; padding: 0.75rem; }
+.form-error { color: #c0392b; font-size: 0.9rem; }
+
+.manage-sources h2,
+.manage-sources h3,
+.manage-sources p,
+.manage-sources label,
+.manage-sources span {
+    color: #1a1a1a;
+}
+
+.toolbar-source-btn {
+    margin-left: auto;
+}
+
+.manage-sources-columns {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.manage-sources-column {
+    flex: 1;
+    min-width: 0;
+}
+
+.source-usage-hint {
+    font-size: 0.8rem;
+    color: #777;
+    margin: 0.1rem 0 0;
+}
+.progress-panel {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
+.progress-panel-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
+}
+.progress-summary {
+    font-size: 0.85rem;
+    color: #666;
+    font-weight: 600;
+}
+.progress-node-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.progress-node {
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    padding: 0.5rem 0.6rem;
+}
+.progress-node-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.progress-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0 0.2rem;
+}
+.progress-node-title {
+    flex: 1;
+    border: 1px solid transparent;
+    background: transparent;
+    font: inherit;
+    padding: 0.2rem 0.3rem;
+    border-radius: 4px;
+}
+.progress-node-title:hover,
+.progress-node-title:focus {
+    border-color: #ccc;
+    background: #fff;
+}
+.progress-children {
+    margin-top: 0.5rem;
+    margin-left: 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.progress-node-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0.4rem 0 0.1rem 0;
+}
+.progress-field-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #f0f0f0;
+    border-radius: 999px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.78rem;
+    color: #333;
+}
+.progress-field-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+    font-size: 0.85rem;
+    line-height: 1;
+    padding: 0;
+}
+.progress-field-remove:hover {
+    color: #c0392b;
+}
+.progress-field-input {
+    font-size: 0.78rem;
+    padding: 0.15rem 0.4rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    max-width: 140px;
+}
+.progress-add-form {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    margin-top: 0.4rem;
+}
+.progress-add-kind {
+    font-size: 0.78rem;
+    padding: 0.2rem 0.3rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+.progress-add-input {
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Galerie de cartes façon Crunchyroll */
+.progress-card-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    margin-bottom: 0.6rem;
+}
+.progress-card-tile {
+    width: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.progress-card-thumb {
+    position: relative;
+    width: 180px;
+    height: 101px;
+    background-color: #2a2a2a;
+    background-size: cover;
+    background-position: center;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.progress-card-checkbox {
+    position: absolute;
+    top: 0.4rem;
+    left: 0.4rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    z-index: 2;
+}
+.progress-card-gear {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 0.85rem;
+    cursor: pointer;
+    z-index: 2;
+}
+.progress-card-duration {
+    position: absolute;
+    bottom: 0.35rem;
+    right: 0.4rem;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+}
+.progress-card-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+.progress-card-add {
+    height: 101px;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+}
+.progress-card-add:hover {
+    border-color: #888;
+    color: #666;
+}
+.progress-card-add-icon {
+    font-size: 1.8rem;
+    line-height: 1;
+}
+.progress-card-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    min-width: 320px;
+}
+
+/* Liste "texte" compacte, façon liste de chapitres */
+.progress-text-list {
+    display: flex;
+    flex-direction: column;
+}
+.progress-text-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.1rem;
+    border-bottom: 1px solid #e5e5e5;
+}
+.progress-text-title {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-weight: 600;
+    color: #2a8f88;
+    padding: 0.1rem 0.2rem;
+    border-radius: 4px;
+}
+.progress-text-title:hover,
+.progress-text-title:focus {
+    background: #f2f2f2;
+}
+
+.progress-group-checkbox {
+    width: 1rem;
+    height: 1rem;
+}
+.progress-card-thumb {
+    cursor: pointer;
+}
+.progress-text-watch {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 0.1rem 0.3rem;
+    opacity: 0.75;
+}
+.progress-text-watch:hover {
+    opacity: 1;
+}
+.progress-usage-hint {
+    font-size: 0.78rem;
+    color: #777;
+    margin-left: 0.5rem;
+}
+.progress-links-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    min-width: 300px;
+}
+.progress-links-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.progress-link-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+.progress-link-item {
+    color: #2a8f88;
+    font-weight: 600;
+    text-decoration: none;
+}
+.progress-link-item:hover {
+    text-decoration: underline;
+}
+.progress-links-add {
+    display: flex;
+    gap: 0.4rem;
+}
+.progress-links-add input {
+    flex: 1;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
