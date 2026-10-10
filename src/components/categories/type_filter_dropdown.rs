@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use std::collections::HashSet;
 
 use crate::components::TypeCheckboxList;
+use crate::i18n::use_texts;
 
 /// Enveloppe `TypeCheckboxList` derrière un bouton qui ouvre/ferme un panneau
 /// déroulant (au lieu d'afficher les cases à cocher directement dans la
@@ -9,12 +10,13 @@ use crate::components::TypeCheckboxList;
 /// remplacer directement là où il servait de filtre.
 #[component]
 pub fn TypeFilterDropdown(category_ids: Vec<usize>, selected: Signal<HashSet<usize>>) -> Element {
+    let i18n_text = use_texts();
     let mut show_panel = use_signal(|| false);
     let selected_count = selected.read().len();
     let button_label = if selected_count == 0 {
-        "Type : Tous".to_string()
+        i18n_text.type_filter_all.to_string()
     } else {
-        format!("Type : {selected_count} sélectionné(s)")
+        (i18n_text.type_filter_selected)(selected_count)
     };
 
     rsx! {

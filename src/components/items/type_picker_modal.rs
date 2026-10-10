@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::InlineAddForm;
+use crate::i18n::use_texts;
 use crate::state::{CategoryStore, ItemStore, TypeStore};
 
 /// Relit à chaud la liste des types du placement (catégorie/sous-catégorie)
@@ -76,6 +77,7 @@ pub fn TypePickerModal(
     subcategory_id: usize,
     onclose: EventHandler<()>,
 ) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut type_store = use_context::<Signal<TypeStore>>();
     let category_store = use_context::<Signal<CategoryStore>>();
@@ -88,7 +90,7 @@ pub fn TypePickerModal(
         .iter()
         .find(|c| c.id == category_id)
         .map(|c| c.name.clone())
-        .unwrap_or_else(|| "cette catégorie".to_string());
+        .unwrap_or_else(|| i18n_text.this_category.to_string());
 
     let own_types: Vec<(usize, String, bool)> = type_store
         .read()
@@ -124,7 +126,7 @@ pub fn TypePickerModal(
                 class: "type-picker-panel",
                 onclick: move |event| event.stop_propagation(),
                 div { class: "type-picker-header",
-                    h3 { "Types" }
+                    h3 { "{i18n_text.types_title}" }
                     button {
                         r#type: "button",
                         class: "icon-button",
@@ -133,7 +135,7 @@ pub fn TypePickerModal(
                     }
                 }
                 InlineAddForm {
-                    placeholder: "Nouveau type pour {own_category_name}",
+                    placeholder: (i18n_text.new_type_for)(&own_category_name),
                     onsubmit: move |name: String| {
                         let new_id = type_store.write().add_type(category_id, name);
                         let mut new_ids = current_ids(item_store, item_id, category_id, subcategory_id);
@@ -148,7 +150,7 @@ pub fn TypePickerModal(
                 div { class: "type-picker-section",
                     h4 { "{own_category_name}" }
                     if own_types.is_empty() {
-                        span { class: "toolbar-hint", "Aucun type créé pour cette catégorie" }
+                        span { class: "toolbar-hint", "{i18n_text.no_type_for_category}" }
                     } else {
                         div { class: "type-picker-grid",
                             for (type_id , type_name , checked) in own_types {
@@ -178,7 +180,7 @@ pub fn TypePickerModal(
                 }
                 if !other_groups.is_empty() {
                     div { class: "type-picker-section",
-                        h4 { "Autres catégories" }
+                        h4 { "{i18n_text.other_categories}" }
                         for (group_cat_id , group_name , types) in other_groups {
                             div {
                                 class: "type-picker-subgroup",

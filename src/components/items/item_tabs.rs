@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::{InlineAddForm, ProgressPanel};
+use crate::i18n::use_texts;
 use crate::models::ProgressNodeKind;
 use crate::state::ItemStore;
 
@@ -10,6 +11,7 @@ use crate::state::ItemStore;
 /// l'instant : sa zone de contenu est vide, le contenu viendra plus tard.
 #[component]
 pub fn ItemTabs(item_id: usize, category_id: usize, subcategory_id: usize) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut active_tab = use_signal(|| None::<usize>);
 
@@ -47,9 +49,9 @@ pub fn ItemTabs(item_id: usize, category_id: usize, subcategory_id: usize) -> El
         .unwrap_or((0, 0));
 
     let progress_tab_label = if total_leaf_count > 0 {
-        format!("Progression ({done_leaf_count}/{total_leaf_count})")
+        (i18n_text.progress_with_count)(done_leaf_count, total_leaf_count)
     } else {
-        "Progression".to_string()
+        i18n_text.progress.to_string()
     };
 
     // Si l'onglet actif ne correspond plus à un onglet existant de CE
@@ -79,7 +81,7 @@ pub fn ItemTabs(item_id: usize, category_id: usize, subcategory_id: usize) -> El
                         button {
                             r#type: "button",
                             class: "item-tab-remove",
-                            title: "Supprimer cet onglet",
+                            title: "{i18n_text.remove_tab}",
                             onclick: move |_| {
                                 item_store.write().remove_tab(item_id, category_id, subcategory_id, tab_id);
                                 active_tab.set(None);
@@ -89,7 +91,7 @@ pub fn ItemTabs(item_id: usize, category_id: usize, subcategory_id: usize) -> El
                     }
                 }
                 InlineAddForm {
-                    placeholder: "Nouvel onglet",
+                    placeholder: "{i18n_text.new_tab}",
                     onsubmit: move |title: String| {
                         let new_id = item_store
                             .write()

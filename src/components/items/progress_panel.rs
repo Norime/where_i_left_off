@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use std::collections::HashSet;
 
 use crate::components::{DeleteButton, Modal};
+use crate::i18n::{use_texts, Language};
 use crate::models::{ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind};
 use crate::state::ItemStore;
 
@@ -195,13 +196,20 @@ fn ProgressNodeRow(
     expanded: Signal<HashSet<usize>>,
     editing_card: Signal<Option<usize>>,
 ) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut show_links = use_signal(|| false);
     let node_id = node.id;
     let kind = node.kind;
     let is_expanded = expanded.read().contains(&node_id);
     let is_editing = editing_card() == Some(node_id);
-    let duration = node.fields.iter().find(|f| f.label == "Durée").map(|f| f.value.clone());
+    // Le label est une donnée saisie par l'utilisateur : on reconnaît le mot
+    // "durée" dans toutes les langues, pas seulement la langue active.
+    let duration = node
+        .fields
+        .iter()
+        .find(|f| Language::ALL.iter().any(|l| l.texts().duration_label == f.label))
+        .map(|f| f.value.clone());
 
     match kind {
         ProgressNodeKind::Card => {
@@ -210,7 +218,7 @@ fn ProgressNodeRow(
                 div { class: "progress-card-tile",
                     div {
                         class: "progress-card-thumb",
-                        title: "Regarder",
+                        title: "{i18n_text.watch}",
                         style: node.image_url
                             .as_ref()
                             .map(|url| format!("background-image: url('{url}');"))
@@ -300,7 +308,7 @@ fn ProgressNodeRow(
                         input {
                             r#type: "checkbox",
                             class: "progress-group-checkbox",
-                            title: "Tout cocher / décocher",
+                            title: "{i18n_text.check_all}",
                             checked: all_done,
                             oninput: move |event| {
                                 let checked = event.value().parse().unwrap_or(false);
@@ -396,7 +404,7 @@ fn ProgressNodeRow(
                     button {
                         r#type: "button",
                         class: "progress-text-watch",
-                        title: "Regarder",
+                        title: "{i18n_text.watch}",
                         onclick: move |_| show_links.set(true),
                         "👁"
                     }
@@ -446,14 +454,15 @@ fn ProgressCardConfigModal(
     fields: Vec<ItemInfoField>,
     onclose: EventHandler<()>,
 ) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
 
     rsx! {
         Modal { onclose: move |_| onclose.call(()),
             div { class: "progress-card-modal",
-                h3 { "Modifier la carte" }
+                h3 { "{i18n_text.edit_card}" }
                 div { class: "item-form-field",
-                    label { "Titre" }
+                    label { "{i18n_text.title}" }
                     input {
                         r#type: "text",
                         value: "{title}",
@@ -492,7 +501,7 @@ fn ProgressCardConfigModal(
                         r#type: "button",
                         class: "primary-btn",
                         onclick: move |_| onclose.call(()),
-                        "Fermer"
+                        "{i18n_text.close}"
                     }
                 }
             }
@@ -514,6 +523,7 @@ fn ProgressLinksPopup(
     is_inherited: bool,
     onclose: EventHandler<()>,
 ) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut new_label = use_signal(String::new);
     let mut new_url = use_signal(String::new);
@@ -521,12 +531,12 @@ fn ProgressLinksPopup(
     rsx! {
         Modal { onclose: move |_| onclose.call(()),
             div { class: "progress-links-modal",
-                h3 { "Regarder" }
+                h3 { "{i18n_text.watch}" }
                 if is_inherited {
-                    p { class: "toolbar-hint", "Liens hérités d'un élément parent." }
+                    p { class: "toolbar-hint", "{i18n_text.inherited_links}" }
                 }
                 if links.is_empty() {
-                    p { class: "toolbar-hint", "Aucun lien pour l'instant." }
+                    p { class: "toolbar-hint", "{i18n_text.no_links}" }
                 } else {
                     div { class: "progress-links-list",
                         for (index , link) in links.iter().cloned().enumerate() {
@@ -583,7 +593,7 @@ fn ProgressLinksPopup(
                 div { class: "progress-links-add",
                     input {
                         r#type: "text",
-                        placeholder: "Nom (ex: Crunchyroll)",
+                        placeholder: "{i18n_text.link_name_placeholder}",
                         value: "{new_label}",
                         oninput: move |event| new_label.set(event.value()),
                     }
@@ -639,7 +649,7 @@ fn ProgressLinksPopup(
                         r#type: "button",
                         class: "primary-btn",
                         onclick: move |_| onclose.call(()),
-                        "Fermer"
+                        "{i18n_text.close}"
                     }
                 }
             }
@@ -663,6 +673,7 @@ fn ProgressFieldsEditor(
     fields: Vec<ItemInfoField>,
     image_url: Option<String>,
 ) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut new_label = use_signal(String::new);
     let mut new_value = use_signal(String::new);
@@ -680,7 +691,7 @@ fn ProgressFieldsEditor(
                 input {
                     r#type: "text",
                     class: "progress-field-input",
-                    placeholder: "URL de l'image",
+                    placeholder: "{i18n_text.image_url}",
                     value: image_url.clone().unwrap_or_default(),
                     oninput: move |event| {
                         let value = event.value();
@@ -741,14 +752,14 @@ fn ProgressFieldsEditor(
             input {
                 r#type: "text",
                 class: "progress-field-input",
-                placeholder: "Label (ex: Durée)",
+                placeholder: "{i18n_text.progress_field_label_placeholder}",
                 value: "{new_label}",
                 oninput: move |event| new_label.set(event.value()),
             }
             input {
                 r#type: "text",
                 class: "progress-field-input",
-                placeholder: "Valeur (ex: 42 min)",
+                placeholder: "{i18n_text.progress_field_value_placeholder}",
                 value: "{new_value}",
                 oninput: move |event| new_value.set(event.value()),
             }
@@ -800,6 +811,7 @@ fn ProgressFieldsEditor(
 /// (avec un titre provisoire) et ouvre aussitôt sa popup de configuration.
 #[component]
 fn CardAddTile(item_id: usize, category_id: usize, subcategory_id: usize, parent_id: Option<usize>, editing_card: Signal<Option<usize>>) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
 
     rsx! {
@@ -816,7 +828,7 @@ fn CardAddTile(item_id: usize, category_id: usize, subcategory_id: usize, parent
                         parent_id,
                         ProgressNodeKind::Card,
                         None,
-                        "Nouvel élément".to_string(),
+                        i18n_text.new_card_title.to_string(),
                     );
                 if let Some(new_id) = new_id {
                     editing_card.set(Some(new_id));
@@ -830,6 +842,7 @@ fn CardAddTile(item_id: usize, category_id: usize, subcategory_id: usize, parent
 /// Formulaire d'ajout pour une liste "texte" : juste un titre.
 #[component]
 fn TextCreateForm(item_id: usize, category_id: usize, subcategory_id: usize, parent_id: Option<usize>) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut new_title = use_signal(String::new);
 
@@ -838,7 +851,7 @@ fn TextCreateForm(item_id: usize, category_id: usize, subcategory_id: usize, par
             input {
                 r#type: "text",
                 class: "progress-add-input",
-                placeholder: "Ajouter un élément",
+                placeholder: "{i18n_text.add_entry_placeholder}",
                 value: "{new_title}",
                 oninput: move |event| new_title.set(event.value()),
             }
@@ -873,14 +886,15 @@ fn TextCreateForm(item_id: usize, category_id: usize, subcategory_id: usize, par
 /// sous-liste imbriquée dans une liste elle-même de type "sous-listes").
 #[component]
 fn GroupCreateForm(item_id: usize, category_id: usize, subcategory_id: usize, parent_id: Option<usize>) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut new_title = use_signal(String::new);
     let mut new_children_kind = use_signal(|| ProgressNodeKind::Card);
 
     let placeholder = if parent_id.is_none() {
-        "Nom de la liste (saison, tome, film...)"
+        i18n_text.list_name_placeholder
     } else {
-        "Nom de la sous-liste"
+        i18n_text.sublist_name_placeholder
     };
 
     rsx! {
@@ -909,9 +923,9 @@ fn GroupCreateForm(item_id: usize, category_id: usize, subcategory_id: usize, pa
                             },
                         );
                 },
-                option { value: "card", "Contiendra des cartes" }
-                option { value: "text", "Contiendra du texte" }
-                option { value: "group", "Contiendra des sous-listes" }
+                option { value: "card", "{i18n_text.contains_cards}" }
+                option { value: "text", "{i18n_text.contains_text}" }
+                option { value: "group", "{i18n_text.contains_sublists}" }
             }
             button {
                 r#type: "button",

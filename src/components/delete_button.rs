@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::Modal;
+use crate::i18n::use_texts;
 
 /// Bouton de suppression : ouvre une fenêtre de confirmation avant de
 /// déclencher réellement `onconfirm`. Réutilisé pour les éléments, les
@@ -11,6 +12,7 @@ use crate::components::Modal;
 /// qui ouvre l'URL dans une fenêtre externe.
 #[component]
 pub fn DeleteButton(onconfirm: EventHandler<()>) -> Element {
+    let i18n_text = use_texts();
     let mut show_confirm = use_signal(|| false);
 
     rsx! {
@@ -25,8 +27,8 @@ pub fn DeleteButton(onconfirm: EventHandler<()>) -> Element {
         }
         if show_confirm() {
             Modal { onclose: move |_| show_confirm.set(false),
-                h2 { "Supprimer ?" }
-                p { "Cette action est définitive et ne peut pas être annulée." }
+                h2 { "{i18n_text.delete_confirm_title}" }
+                p { "{i18n_text.delete_confirm_text}" }
                 div { class: "modal-actions",
                     button {
                         r#type: "button",
@@ -35,7 +37,7 @@ pub fn DeleteButton(onconfirm: EventHandler<()>) -> Element {
                             evt.prevent_default();
                             show_confirm.set(false);
                         },
-                        "Annuler"
+                        "{i18n_text.cancel}"
                     }
                     button {
                         r#type: "button",
@@ -46,7 +48,7 @@ pub fn DeleteButton(onconfirm: EventHandler<()>) -> Element {
                             show_confirm.set(false);
                             onconfirm.call(());
                         },
-                        "Supprimer"
+                        "{i18n_text.delete}"
                     }
                 }
             }

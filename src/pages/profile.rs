@@ -1,17 +1,20 @@
 use dioxus::prelude::*;
+use crate::components::LanguageSelect;
+use crate::i18n::use_texts;
 use crate::state::UserStore;
 
 /// Page de réglages du compte connecté : modifier le nom d'utilisateur et
-/// l'image de profil, définir/changer/retirer le mot de passe, et se
-/// déconnecter.
+/// l'image de profil, choisir la langue, définir/changer/retirer le mot de
+/// passe, et se déconnecter.
 #[component]
 pub fn Profile() -> Element {
+    let i18n_text = use_texts();
     let mut user_store = use_context::<Signal<UserStore>>();
     let mut session = use_context::<Signal<Option<usize>>>();
 
     let Some(user_id) = session() else {
         return rsx! {
-            p { "Aucun utilisateur connecté." }
+            p { "{i18n_text.no_user_logged_in}" }
         };
     };
 
@@ -19,24 +22,25 @@ pub fn Profile() -> Element {
 
     let Some(current_user) = current_user else {
         return rsx! {
-            p { "Compte introuvable." }
+            p { "{i18n_text.account_not_found}" }
         };
     };
 
     let has_password = current_user.password_hash.is_some();
     let password_hint = if has_password {
-        "Ce compte est protégé par un mot de passe."
+        i18n_text.has_password_hint
     } else {
-        "Ce compte n'a pas de mot de passe."
+        i18n_text.no_password_hint
     };
+    let current_language = current_user.language;
 
     let mut username = use_signal(|| current_user.username.clone());
     let mut avatar_url = use_signal(|| current_user.avatar_url.clone().unwrap_or_default());
-    let mut profile_error = use_signal(|| None::<String>);
+    let mut profile_error = use_signal(|| None::<&'static str>);
     let mut profile_saved = use_signal(|| false);
 
     let mut new_password = use_signal(String::new);
-    let mut password_error = use_signal(|| None::<String>);
+    let mut password_error = use_signal(|| None::<&'static str>);
     let mut password_saved = use_signal(|| false);
 
     let avatar_url_value = avatar_url.read().trim().to_string();
@@ -53,9 +57,9 @@ pub fn Profile() -> Element {
                 onclick: move |_| {
                     navigator().go_back();
                 },
-                "← Retour"
+                "{i18n_text.back}"
             }
-            h1 { "Mon profil" }
+            h1 { "{i18n_text.profile_title}" }
 
             form {
                 class: "profile-form",
@@ -63,7 +67,7 @@ pub fn Profile() -> Element {
                     event.prevent_default();
                     let username_value = username.read().trim().to_string();
                     if username_value.is_empty() {
-                        profile_error.set(Some("Le nom d'utilisateur est requis".to_string()));
+                        profile_error.set(Some(i18n_text.username_required));
                         profile_saved.set(false);
                         return;
                     }
@@ -79,8 +83,8 @@ pub fn Profile() -> Element {
                             profile_error.set(None);
                             profile_saved.set(true);
                         }
-                        Err(message) => {
-                            profile_error.set(Some(message));
+                        Err(_) => {
+                            profile_error.set(Some(i18n_text.username_taken));
                             profile_saved.set(false);
                         }
                     }
@@ -91,7 +95,7 @@ pub fn Profile() -> Element {
                         style: "{avatar_preview_style}",
                     }
                     label {
-                        "Image de profil (URL)"
+                        "{i18n_text.avatar_url_label}"
                         input {
                             value: "{avatar_url}",
                             oninput: move |event| {
@@ -102,7 +106,7 @@ pub fn Profile() -> Element {
                     }
                 }
                 label {
-                    "Nom d'utilisateur"
+                    "{i18n_text.username}"
                     input {
                         value: "{username}",
                         oninput: move |event| {
@@ -115,12 +119,23 @@ pub fn Profile() -> Element {
                     p { class: "auth-error", "{message}" }
                 }
                 if profile_saved() {
-                    p { class: "profile-success", "Profil mis à jour." }
+                    p { class: "profile-success", "{i18n_text.profile_saved}" }
                 }
-                button { r#type: "submit", class: "primary-btn", "Enregistrer" }
+                button { r#type: "submit", class: "primary-btn", "{i18n_text.save}" }
             }
 
-            h2 { "Mot de passe" }
+            // Appliquée immédiatement : le `Memo<Language>` de `App` lit
+            // `user_store`, toute l'interface se ré-affiche dans la langue choisie.
+            h2 { "{i18n_text.language}" }
+            div { class: "form-field-language",
+                LanguageSelect {
+                    value: current_language,
+                    onchange: move |l| user_store.write().set_language(user_id, l),
+                }
+                p { class: "profile-hint", "{i18n_text.language_hint}" }
+            }
+
+            h2 { "{i18n_text.password}" }
             p { class: "profile-hint", "{password_hint}" }
             form {
                 class: "profile-form",
@@ -128,8 +143,7 @@ pub fn Profile() -> Element {
                     event.prevent_default();
                     let pwd = new_password.read().trim().to_string();
                     if pwd.is_empty() {
-                        password_error
-                            .set(Some("Entre un mot de passe avant de valider".to_string()));
+                        password_error.set(Some(i18n_text.enter_password_first));
                         password_saved.set(false);
                         return;
                     }
@@ -140,7 +154,7 @@ pub fn Profile() -> Element {
                 },
                 input {
                     r#type: "password",
-                    placeholder: "Nouveau mot de passe",
+                    placeholder: "{i18n_text.new_password_placeholder}",
                     value: "{new_password}",
                     oninput: move |event| {
                         new_password.set(event.value());
@@ -151,10 +165,10 @@ pub fn Profile() -> Element {
                     p { class: "auth-error", "{message}" }
                 }
                 if password_saved() {
-                    p { class: "profile-success", "Mot de passe mis à jour." }
+                    p { class: "profile-success", "{i18n_text.password_saved}" }
                 }
                 div { class: "profile-password-actions",
-                    button { r#type: "submit", class: "primary-btn", "Changer le mot de passe" }
+                    button { r#type: "submit", class: "primary-btn", "{i18n_text.change_password}" }
                     if has_password {
                         button {
                             r#type: "button",
@@ -163,7 +177,7 @@ pub fn Profile() -> Element {
                                 user_store.write().remove_password(user_id);
                                 password_saved.set(true);
                             },
-                            "Retirer le mot de passe"
+                            "{i18n_text.remove_password}"
                         }
                     }
                 }
@@ -171,7 +185,7 @@ pub fn Profile() -> Element {
 
             hr {}
 
-            button { class: "danger-btn", onclick: move |_| session.set(None), "Déconnexion" }
+            button { class: "danger-btn", onclick: move |_| session.set(None), "{i18n_text.logout}" }
         }
     }
 }

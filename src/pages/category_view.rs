@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use std::collections::HashSet;
 
 use crate::components::{ItemCard, ManageSourcesModal, NewItemModal, TypeFilterDropdown};
+use crate::i18n::use_texts;
 use crate::models::ItemStatus;
 use crate::state::ItemStore;
 
@@ -15,6 +16,7 @@ enum SortOrder {
 
 #[component]
 pub fn CategoryView(category_id: usize, subcategory_id: usize) -> Element {
+    let i18n_text = use_texts();
     let item_store = use_context::<Signal<ItemStore>>();
 
     let mut sort_order = use_signal(|| SortOrder::TitleAsc);
@@ -107,8 +109,8 @@ pub fn CategoryView(category_id: usize, subcategory_id: usize) -> Element {
                                 },
                             );
                     },
-                    option { value: "asc", "Titre A → Z" }
-                    option { value: "desc", "Titre Z → A" }
+                    option { value: "asc", "{i18n_text.sort_title_asc}" }
+                    option { value: "desc", "{i18n_text.sort_title_desc}" }
                 }
                 // Trie par status
                 select {
@@ -124,10 +126,10 @@ pub fn CategoryView(category_id: usize, subcategory_id: usize) -> Element {
                                 },
                             );
                     },
-                    option { value: "all", "Statut : Tous" }
-                    option { value: "new", "Nouveau" }
-                    option { value: "in_progress", "En cours" }
-                    option { value: "done", "Terminé" }
+                    option { value: "all", "{i18n_text.status_all}" }
+                    option { value: "new", "{i18n_text.status_new}" }
+                    option { value: "in_progress", "{i18n_text.status_in_progress}" }
+                    option { value: "done", "{i18n_text.status_done}" }
                 }
                 // Combobox de filtre des Types
                 TypeFilterDropdown { category_ids: vec![category_id], selected: type_filter }
@@ -135,7 +137,7 @@ pub fn CategoryView(category_id: usize, subcategory_id: usize) -> Element {
                 input {
                     r#type: "text",
                     class: "toolbar-control search-input",
-                    placeholder: "Rechercher un titre...",
+                    placeholder: "{i18n_text.search_title_placeholder}",
                     value: "{search_query()}",
                     oninput: move |event| search_query.set(event.value()),
                 }
@@ -144,16 +146,16 @@ pub fn CategoryView(category_id: usize, subcategory_id: usize) -> Element {
                     button {
                         r#type: "button",
                         class: "secondary-btn toolbar-source-btn",
-                        title: "Sources de données pour cette sous-catégorie",
+                        title: "{i18n_text.sources_for_subcategory}",
                         onclick: move |_| show_sources_modal.set(true),
-                        "🔌 Sources"
+                        "{i18n_text.sources_button}"
                     }
                 }
             }
 
             if !is_specific_subcategory {
                 p { class: "toolbar-hint",
-                    "Sélectionne une sous-catégorie précise pour ajouter un élément ou configurer une source."
+                    "{i18n_text.select_subcategory_hint}"
                 }
             }
 
@@ -182,7 +184,7 @@ pub fn CategoryView(category_id: usize, subcategory_id: usize) -> Element {
                         let next_value = *visible_count.read() + BATCH_SIZE;
                         visible_count.set(next_value);
                     },
-                    "Chargement..."
+                    "{i18n_text.loading}"
                 }
             }
 

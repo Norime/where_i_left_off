@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::Modal;
+use crate::i18n::use_texts;
 use crate::state::{CategoryStore, ItemStore};
 
 /// Fenêtre pour rattacher un élément à une catégorie/sous-catégorie
@@ -8,12 +9,13 @@ use crate::state::{CategoryStore, ItemStore};
 /// les sous-catégories de la catégorie choisie.
 #[component]
 pub fn AddPlacementModal(item_id: usize, onclose: EventHandler<()>) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let category_store = use_context::<Signal<CategoryStore>>();
 
     let mut selected_category = use_signal(|| None::<usize>);
     let mut selected_subcategory = use_signal(|| None::<usize>);
-    let mut error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<&'static str>);
 
     let available_categories: Vec<(usize, String)> = category_store.read().categories.iter()
         .filter(|c| c.subcategories.iter().any(|s| s.id != 0))
@@ -33,10 +35,10 @@ pub fn AddPlacementModal(item_id: usize, onclose: EventHandler<()>) -> Element {
 
     rsx! {
         Modal { onclose: move |_| onclose.call(()),
-            h2 { "Ajouter à une catégorie" }
+            h2 { "{i18n_text.add_to_category}" }
             div { class: "placement-picker-form",
                 label {
-                    "Catégorie"
+                    "{i18n_text.category}"
                     select {
                         value: "{category_value}",
                         onchange: move |event| {
@@ -46,14 +48,14 @@ pub fn AddPlacementModal(item_id: usize, onclose: EventHandler<()>) -> Element {
                             }
                             selected_subcategory.set(None);
                         },
-                        option { value: "", "Choisir une catégorie" }
+                        option { value: "", "{i18n_text.choose_category}" }
                         for (id , name) in available_categories.iter() {
                             option { key: "{id}", value: "{id}", "{name}" }
                         }
                     }
                 }
                 label {
-                    "Sous-catégorie"
+                    "{i18n_text.subcategory}"
                     select {
                         value: "{subcategory_value}",
                         disabled: selected_category().is_none(),
@@ -63,7 +65,7 @@ pub fn AddPlacementModal(item_id: usize, onclose: EventHandler<()>) -> Element {
                                 Err(_) => selected_subcategory.set(None),
                             }
                         },
-                        option { value: "", "Choisir une sous-catégorie" }
+                        option { value: "", "{i18n_text.choose_subcategory}" }
                         for (id , name) in available_subcategories.iter() {
                             option { key: "{id}", value: "{id}", "{name}" }
                         }
@@ -73,7 +75,7 @@ pub fn AddPlacementModal(item_id: usize, onclose: EventHandler<()>) -> Element {
                     p { class: "auth-error", "{message}" }
                 }
                 div { class: "modal-actions",
-                    button { r#type: "button", onclick: move |_| onclose.call(()), "Annuler" }
+                    button { r#type: "button", onclick: move |_| onclose.call(()), "{i18n_text.cancel}" }
                     button {
                         r#type: "button",
                         class: "primary-btn",
@@ -83,15 +85,10 @@ pub fn AddPlacementModal(item_id: usize, onclose: EventHandler<()>) -> Element {
                                     item_store.write().add_placement(item_id, cat, sub);
                                     onclose.call(());
                                 }
-                                _ => {
-                                    error
-                                        .set(
-                                            Some("Choisis une catégorie et une sous-catégorie".to_string()),
-                                        )
-                                }
+                                _ => error.set(Some(i18n_text.choose_category_and_subcategory)),
                             }
                         },
-                        "Ajouter"
+                        "{i18n_text.add}"
                     }
                 }
             }

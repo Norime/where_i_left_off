@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
-use crate::components::{AccountTile, AddAccountTile, PasswordPromptModal};
+use crate::components::{AccountTile, AddAccountTile, LanguageSelect, PasswordPromptModal};
+use crate::i18n::use_texts;
 use crate::persistence;
 use crate::state::UserStore;
 
@@ -9,19 +10,26 @@ use crate::state::UserStore;
 /// un nouveau compte.
 #[component]
 pub fn AuthScreen() -> Element {
+    let i18n_text = use_texts();
     let mut user_store = use_context::<Signal<UserStore>>();
     let mut session = use_context::<Signal<Option<usize>>>();
     let mut password_prompt = use_signal(|| None::<(usize, String)>);
+    let last_language = user_store.read().last_language;
 
     rsx! {
         div { class: "auth-screen",
+            div { class: "auth-language-switch",
+                LanguageSelect {
+                    value: last_language,
+                    compact: true,
+                    onchange: move |l| user_store.write().last_language = l,
+                }
+            }
             div { class: "auth-box",
-                h1 { "Connexion" }
+                h1 { "{i18n_text.login_title}" }
 
                 if user_store.read().users.is_empty() {
-                    p { class: "auth-hint",
-                        "Aucun compte pour l'instant, crée le premier ci-dessous."
-                    }
+                    p { class: "auth-hint", "{i18n_text.no_account_hint}" }
                 }
 
                 div { class: "account-row",

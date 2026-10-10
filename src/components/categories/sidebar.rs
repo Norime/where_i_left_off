@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use std::collections::HashSet;
 use crate::components::{CategoryTreeItem, InlineAddForm};
+use crate::i18n::use_texts;
 use crate::routes::Route;
 use crate::state::{CategoryStore, UserStore};
 
@@ -9,6 +10,7 @@ use crate::state::{CategoryStore, UserStore};
 /// formulaire pour ajouter une nouvelle catégorie.
 #[component]
 pub fn Sidebar() -> Element {
+    let i18n_text = use_texts();
     let mut store = use_context::<Signal<CategoryStore>>();
     let session = use_context::<Signal<Option<usize>>>();
     let user_store = use_context::<Signal<UserStore>>();
@@ -28,7 +30,7 @@ pub fn Sidebar() -> Element {
                 span { "{username}" }
                 Link { to: Route::Profile {}, class: "profile-btn", "⚙" }
             }
-            h2 { class: "sidebar-title", "Catégories" }
+            h2 { class: "sidebar-title", "{i18n_text.categories}" }
             ul { class: "category-list",
                 for category in store.read().categories.iter() {
                     CategoryTreeItem {
@@ -39,7 +41,7 @@ pub fn Sidebar() -> Element {
                 }
             }
             InlineAddForm {
-                placeholder: "Nouvelle catégorie",
+                placeholder: "{i18n_text.new_category}",
                 onsubmit: move |name: String| {
                     store.write().add_category(name);
                 },

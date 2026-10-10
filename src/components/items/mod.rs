@@ -1,5 +1,4 @@
 mod item_card;
-mod add_item_card;
 mod new_item_modal;
 mod edit_item_modal;
 mod add_placement_modal;
@@ -10,7 +9,6 @@ mod type_picker_modal;
 mod item_tabs;
 
 pub use item_card::ItemCard;
-pub use add_item_card::AddItemCard;
 pub use new_item_modal::NewItemModal;
 pub use edit_item_modal::EditItemModal;
 pub use add_placement_modal::AddPlacementModal;

@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use serde_json::Value;
 
+use crate::i18n::use_texts;
 use crate::json_path;
 use crate::models::{ApiSource, ItemInfoField};
 use crate::net;
@@ -16,6 +17,7 @@ pub struct FetchedItemData {
 
 #[component]
 pub fn ItemSourceSearch(scopes: Vec<(usize, usize)>, on_apply: EventHandler<FetchedItemData>) -> Element {
+    let i18n_text = use_texts();
     let source_store = use_context::<Signal<SourceStore>>();
 
     let available_sources: Vec<ApiSource> = source_store
@@ -34,7 +36,7 @@ pub fn ItemSourceSearch(scopes: Vec<(usize, usize)>, on_apply: EventHandler<Fetc
     let mut query = use_signal(String::new);
     let mut results = use_signal(Vec::<Value>::new);
     let mut is_loading = use_signal(|| false);
-    let mut error_message = use_signal(|| Option::<String>::None);
+    let mut error_message = use_signal(|| Option::<net::SearchError>::None);
 
     let selected_source: Option<ApiSource> = available_sources
         .iter()
@@ -53,7 +55,7 @@ pub fn ItemSourceSearch(scopes: Vec<(usize, usize)>, on_apply: EventHandler<Fetc
             let title = selected_source
                 .as_ref()
                 .and_then(|s| json_path::resolve_as_string(&result, &s.title_path))
-                .unwrap_or_else(|| "Sans titre".to_string());
+                .unwrap_or_else(|| i18n_text.untitled.to_string());
             (index, title, result)
         })
         .collect();
@@ -61,7 +63,7 @@ pub fn ItemSourceSearch(scopes: Vec<(usize, usize)>, on_apply: EventHandler<Fetc
     if available_sources.is_empty() {
         return rsx! {
             p { class: "toolbar-hint",
-                "Aucune source configurée pour cette sous-catégorie. Tu peux en ajouter une depuis le bouton 🔌 en haut de la page de la sous-catégorie."
+                "{i18n_text.no_source_configured}"
             }
         };
     }
@@ -70,7 +72,7 @@ pub fn ItemSourceSearch(scopes: Vec<(usize, usize)>, on_apply: EventHandler<Fetc
         div { class: "source-search",
             div { class: "item-form-row",
                 div { class: "item-form-field",
-                    label { "Source" }
+                    label { "{i18n_text.source}" }
                     select {
                         value: "{selected_source_id_text}",
                         onchange: move |event| {
@@ -82,7 +84,7 @@ pub fn ItemSourceSearch(scopes: Vec<(usize, usize)>, on_apply: EventHandler<Fetc
                     }
                 }
                 div { class: "item-form-field",
-                    label { "Recherche" }
+                    label { "{i18n_text.search_label}" }
                     input {
                         r#type: "text",
                         value: "{query}",
@@ -103,7 +105,7 @@ pub fn ItemSourceSearch(scopes: Vec<(usize, usize)>, on_apply: EventHandler<Fetc
                             spawn(async move {
                                 match net::search(&source, &search_query).await {
                                     Ok(found) => results.set(found),
-                                    Err(e) => error_message.set(Some(e.0)),
+                                    Err(e) => error_message.set(Some(e)),
                                 }
                                 is_loading.set(false);
                             });
@@ -111,14 +113,14 @@ pub fn ItemSourceSearch(scopes: Vec<(usize, usize)>, on_apply: EventHandler<Fetc
                     }
                 },
                 if *is_loading.read() {
-                    "Recherche..."
+                    "{i18n_text.searching}"
                 } else {
-                    "Rechercher"
+                    "{i18n_text.search_button}"
                 }
             }
 
-            if let Some(message) = error_message.read().clone() {
-                p { class: "form-error", "{message}" }
+            if let Some(error) = error_message.read().clone() {
+                p { class: "form-error", {i18n_text.search_error(&error)} }
             }
 
             if !result_rows.is_empty() {

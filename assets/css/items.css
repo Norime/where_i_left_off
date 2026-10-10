@@ -61,6 +61,7 @@
     cursor: pointer;
     width: 180px;
     height: 240px;
+    font-size: xxx-large;
 }
 
 .item-card--add .add-icon {
@@ -79,7 +80,6 @@
     background-color: #6a6a6a;
     background-size: cover;
     background-position: center;
-    border-radius: 8px;
     box-sizing: border-box;
 }
 
@@ -218,6 +218,8 @@
     overflow: hidden;
     color: #333;
     line-height: 1.5;
+    margin-left: 5px;
+    margin-right: 5px;
 }
 
 .item-detail-description--expanded {

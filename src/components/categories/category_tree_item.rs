@@ -2,12 +2,14 @@ use dioxus::prelude::*;
 use std::collections::HashSet;
 
 use crate::components::{DeleteButton, InlineAddForm};
+use crate::i18n::use_texts;
 use crate::models::Category;
 use crate::routes::Route;
 use crate::state::{CategoryStore, ItemStore, SourceStore, TypeStore};
 
 #[component]
 pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) -> Element {
+    let i18n_text = use_texts();
     let mut category_store = use_context::<Signal<CategoryStore>>();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut type_store = use_context::<Signal<TypeStore>>();
@@ -61,7 +63,9 @@ pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) ->
                                     category_id,
                                     subcategory_id: sub_id,
                                 },
-                                "{sub_name}"
+                                // La sous-catégorie "toutes" est stockée sous le nom "All" :
+                                // on affiche son nom dans la langue active.
+                                if is_all { "{i18n_text.subcategory_all}" } else { "{sub_name}" }
                             }
                             if !is_all {
                                 DeleteButton {
@@ -76,7 +80,7 @@ pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) ->
                     }
                     li {
                         InlineAddForm {
-                            placeholder: "Nouvelle sous-catégorie",
+                            placeholder: "{i18n_text.new_subcategory}",
                             onsubmit: move |name: String| {
                                 category_store.write().add_subcategory(category_id, name);
                             },

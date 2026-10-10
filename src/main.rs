@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 
 mod auth;
 mod components;
+mod i18n; // Language
 mod json_path;
 mod markdown;
 mod models;
@@ -21,6 +22,7 @@ const MODAL_CSS: &str = include_str!("../assets/css/modal.css");
 const AUTH_CSS: &str = include_str!("../assets/css/auth.css");
 const PROFILE_CSS: &str = include_str!("../assets/css/profile.css");
 const SOURCES_CSS: &str = include_str!("../assets/css/sources.css");
+const LANGUAGE_CSS: &str = include_str!("../assets/css/language.css");
 
 fn main() {
     dioxus::launch(App);
@@ -33,6 +35,7 @@ fn main() {
 fn App() -> Element {
     let user_store = use_context_provider(|| Signal::new(persistence::load_users()));
     let session = use_context_provider(|| Signal::new(None::<usize>));
+    i18n::use_language_provider(user_store, session);
 
     use_effect(move || {
         persistence::save_users(&user_store.read());
@@ -55,6 +58,7 @@ fn App() -> Element {
         style { {AUTH_CSS} }
         style { {PROFILE_CSS} }
         style { {SOURCES_CSS} }
+        style { {LANGUAGE_CSS} }
         {content}
     }
 }

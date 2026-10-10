@@ -1,7 +1,8 @@
 use dioxus::prelude::*;
 use crate::components::{AddPlacementModal, DeleteButton, EditItemModal, TypePickerModal, ItemTabs};
+use crate::i18n::use_texts;
 use crate::markdown;
-use crate::models::{ItemStatus, ProgressNodeKind, WorkStatus};
+use crate::models::{ProgressNodeKind, WorkStatus};
 use crate::state::{CategoryStore, ItemStore, TypeStore};
 
 /// Affiche le détail d'un élément, avec un panneau "Catégories" dans la
@@ -11,13 +12,14 @@ use crate::state::{CategoryStore, ItemStore, TypeStore};
 /// globalement pour l'item).
 #[component]
 pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let category_store = use_context::<Signal<CategoryStore>>();
     let type_store = use_context::<Signal<TypeStore>>();
     let mut show_edit = use_signal(|| false);
     let mut show_add_placement = use_signal(|| false);
     let mut show_type_picker = use_signal(|| false);
-    let mut placement_error = use_signal(|| None::<String>);
+    let mut placement_error = use_signal(|| false);
     let mut selected_placement = use_signal(|| None::<(usize, usize)>);
     let mut description_expanded = use_signal(|| false);
 
@@ -36,7 +38,7 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
             } else {
                 "item-detail-description"
             };
-            let toggle_label = if description_expanded() { "Voir moins" } else { "Voir plus" };
+            let toggle_label = if description_expanded() { i18n_text.show_less } else { i18n_text.show_more };
 
             let placements: Vec<(usize, usize, String, &'static str)> = item.placements.iter()
                 .map(|p| {
@@ -83,6 +85,11 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                 .map(|(_, _, _, key)| *key)
                 .unwrap_or("new");
 
+            let current_status_label = match current_status_key {
+                "in_progress" => i18n_text.status_in_progress,
+                "done" => i18n_text.status_done,
+                _ => i18n_text.status_new,
+            };
             // Statut de L'ŒUVRE (en cours / terminé / non fini) : propre à
             // CE placement, pas à l'item entier — un anime peut être
             // abandonné pendant que le manga du même item continue.
@@ -101,18 +108,18 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                 .unwrap_or_default();
             let current_type_names: Vec<String> = current_type_ids
                 .iter()
-                .filter_map(|tid| type_store.read().types.iter().find(|t| t.id == *tid).map(|t| t.name.clone()))
+                .filter_map(|tid| type_store.read().types.iter().find(|ty| ty.id == *tid).map(|ty| ty.name.clone()))
                 .collect();
             let current_type_display = if current_type_names.is_empty() {
-                "Aucun type".to_string()
+                i18n_text.no_type.to_string()
             } else {
                 current_type_names.join(", ")
             };
 
             // Le statut se calcule tout seul dès qu'il y a de la
             // progression à suivre (voir `recompute_placement_status`
-            // côté store) ; le select "Statut" ne reste modifiable à la
-            // main que pour un placement sans aucune progression.
+            // côté store) ; il est seulement affiché ici, sans possibilité
+            // de le modifier à la main.
             let has_progress: bool = effective_placement
                 .and_then(|(cat_id, sub_id)| item.placements.iter().find(|p| p.category_id == cat_id && p.subcategory_id == sub_id))
                 .map(|p| p.progress.iter().any(|n| n.kind != ProgressNodeKind::Group))
@@ -150,7 +157,7 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                         }
                         div { class: "item-detail-links",
                             div { class: "item-detail-links-header",
-                                h3 { "Catégories" }
+                                h3 { "{i18n_text.categories}" }
                                 button {
                                     class: "add-placement-btn",
                                     onclick: move |_| show_add_placement.set(true),
@@ -168,8 +175,8 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                                             class: "placement-chip-remove",
                                             onclick: move |_| {
                                                 match item_store.write().remove_placement(id, cat_id, sub_id) {
-                                                    Ok(()) => placement_error.set(None),
-                                                    Err(message) => placement_error.set(Some(message)),
+                                                    Ok(()) => placement_error.set(false),
+                                                    Err(_) => placement_error.set(true),
                                                 }
                                             },
                                             "×"
@@ -177,8 +184,8 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                                     }
                                 }
                             }
-                            if let Some(message) = placement_error() {
-                                p { class: "auth-error", "{message}" }
+                            if placement_error() {
+                                p { class: "auth-error", "{i18n_text.last_placement_error}" }
                             }
                         }
                     }
@@ -220,7 +227,7 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                             if let Some((cat_id, sub_id)) = effective_placement {
                                 div { class: "placement-detail-fields",
                                     label { class: "field-row",
-                                        span { class: "field-label", "Statut de l'œuvre" }
+                                        span { class: "field-label", "{i18n_text.work_status_label}" }
                                         select {
                                             value: "{current_work_status_key}",
                                             onchange: move |event| {
@@ -231,36 +238,22 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                                                 };
                                                 item_store.write().set_placement_work_status(id, cat_id, sub_id, new_status);
                                             },
-                                            option { value: "in_progress", "En cours" }
-                                            option { value: "completed", "Terminé" }
-                                            option { value: "unfinished", "Non fini" }
+                                            option { value: "in_progress", "{i18n_text.work_status_in_progress}" }
+                                            option { value: "completed", "{i18n_text.work_status_completed}" }
+                                            option { value: "unfinished", "{i18n_text.work_status_unfinished}" }
                                         }
                                     }
-                                    label { class: "field-row",
-                                        span { class: "field-label", "Statut" }
-                                        select {
-                                            value: "{current_status_key}",
-                                            disabled: has_progress,
-                                            onchange: move |event| {
-                                                let new_status = match event.value().as_str() {
-                                                    "in_progress" => ItemStatus::InProgress,
-                                                    "done" => ItemStatus::Done,
-                                                    _ => ItemStatus::New,
-                                                };
-                                                item_store.write().set_placement_status(id, cat_id, sub_id, new_status);
-                                            },
-                                            option { value: "new", "Nouveau" }
-                                            option { value: "in_progress", "En cours" }
-                                            option { value: "done", "Terminé" }
-                                        }
+                                    div { class: "field-row",
+                                        span { class: "field-label", "{i18n_text.status_label}" }
+                                        span { class: "status-display", "{current_status_label}" }
                                         if has_progress {
                                             span { class: "progress-usage-hint",
-                                                "Calculé depuis la progression"
+                                                "{i18n_text.computed_from_progress}"
                                             }
                                         }
                                     }
                                     div { class: "field-row",
-                                        span { class: "field-label", "Type" }
+                                        span { class: "field-label", "{i18n_text.type_label}" }
                                         span { class: "type-display-list", "{current_type_display}" }
                                         button {
                                             r#type: "button",
@@ -304,7 +297,7 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
             }
         }
         None => rsx! {
-            p { "Élément introuvable" }
+            p { "{i18n_text.item_not_found}" }
         },
     }
 }

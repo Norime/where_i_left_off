@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 
 use crate::components::{DeleteButton, Modal};
+use crate::i18n::use_texts;
 use crate::json_path;
 use crate::models::{ApiSource, SourceField, SourceScope};
 use crate::net;
@@ -8,6 +9,7 @@ use crate::state::{CategoryStore, SourceStore};
 
 #[component]
 pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: EventHandler<()>) -> Element {
+    let i18n_text = use_texts();
     let mut source_store = use_context::<Signal<SourceStore>>();
     let category_store = use_context::<Signal<CategoryStore>>();
 
@@ -54,15 +56,15 @@ pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: E
     rsx! {
         Modal { onclose: move |_| oncancel.call(()),
             div { class: "manage-sources",
-                h2 { "Sources de données pour cette sous-catégorie" }
+                h2 { "{i18n_text.sources_for_subcategory}" }
                 p { class: "toolbar-hint",
-                    "Une source interroge une API en lecture seule (GET, sans authentification) avec un titre, et sait en extraire un titre, une image, une description et des champs additionnels grâce à des chemins JSON que tu définis toi-même."
+                    "{i18n_text.sources_intro}"
                 }
 
-                h3 { "Reliées ici" }
+                h3 { "{i18n_text.linked_here}" }
                 if linked_sources.is_empty() {
                     p { class: "toolbar-hint",
-                        "Aucune source reliée à cette sous-catégorie pour l'instant."
+                        "{i18n_text.no_linked_source}"
                     }
                 }
                 ul { class: "source-list",
@@ -77,7 +79,7 @@ pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: E
                                         let source = source.clone();
                                         move |_| editing.set(Some(source.clone()))
                                     },
-                                    "Modifier"
+                                    "{i18n_text.edit}"
                                 }
                                 DeleteButton {
                                     onconfirm: move |_| {
@@ -108,14 +110,14 @@ pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: E
                                 }),
                             );
                     },
-                    "+ Nouvelle source"
+                    "{i18n_text.new_source}"
                 }
 
                 div { class: "manage-sources-columns",
                     div { class: "manage-sources-column",
-                        h3 { "Dans ma catégorie" }
+                        h3 { "{i18n_text.in_my_category}" }
                         if same_category_candidates.is_empty() {
-                            p { class: "toolbar-hint", "Aucune autre source dans cette catégorie." }
+                            p { class: "toolbar-hint", "{i18n_text.no_other_source_in_category}" }
                         }
                         ul { class: "source-list",
                             for source in same_category_candidates.iter().cloned() {
@@ -125,7 +127,7 @@ pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: E
                                     div {
                                         span { "{source.name}" }
                                         p { class: "source-usage-hint",
-                                            "Utilisée dans : {describe(&source.linked_scopes)}"
+                                            {(i18n_text.used_in)(&describe(&source.linked_scopes))}
                                         }
                                     }
                                     button {
@@ -137,16 +139,16 @@ pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: E
                                                 source_store.write().link_source(source_id, category_id, subcategory_id);
                                             }
                                         },
-                                        "Lier"
+                                        "{i18n_text.link}"
                                     }
                                 }
                             }
                         }
                     }
                     div { class: "manage-sources-column",
-                        h3 { "Autres catégories" }
+                        h3 { "{i18n_text.other_categories}" }
                         if other_category_candidates.is_empty() {
-                            p { class: "toolbar-hint", "Aucune source dans une autre catégorie." }
+                            p { class: "toolbar-hint", "{i18n_text.no_source_in_other_category}" }
                         }
                         ul { class: "source-list",
                             for source in other_category_candidates.iter().cloned() {
@@ -156,7 +158,7 @@ pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: E
                                     div {
                                         span { "{source.name}" }
                                         p { class: "source-usage-hint",
-                                            "Utilisée dans : {describe(&source.linked_scopes)}"
+                                            {(i18n_text.used_in)(&describe(&source.linked_scopes))}
                                         }
                                     }
                                     button {
@@ -168,7 +170,7 @@ pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: E
                                                 source_store.write().link_source(source_id, category_id, subcategory_id);
                                             }
                                         },
-                                        "Lier"
+                                        "{i18n_text.link}"
                                     }
                                 }
                             }
@@ -197,6 +199,7 @@ pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: E
 
 #[component]
 fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandler<ApiSource>) -> Element {
+    let i18n_text = use_texts();
     let mut name = use_signal(|| draft.name.clone());
     let mut search_url_template = use_signal(|| draft.search_url_template.clone());
     let mut results_path = use_signal(|| draft.results_path.clone());
@@ -210,7 +213,7 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
 
     let mut test_query = use_signal(String::new);
     let mut test_raw_result = use_signal(|| Option::<serde_json::Value>::None);
-    let mut test_error = use_signal(|| Option::<String>::None);
+    let mut test_error = use_signal(|| Option::<net::SearchError>::None);
     let mut is_testing = use_signal(|| false);
 
     let draft_id = draft.id;
@@ -229,26 +232,26 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
     let preview_title_text = raw_result
         .as_ref()
         .and_then(|v| json_path::resolve_as_string(v, &title_path.read()))
-        .unwrap_or_else(|| "(rien)".to_string());
+        .unwrap_or_else(|| i18n_text.nothing.to_string());
     let preview_image_text = raw_result
         .as_ref()
         .and_then(|v| json_path::resolve_as_string(v, &image_path.read()))
-        .unwrap_or_else(|| "(rien)".to_string());
+        .unwrap_or_else(|| i18n_text.nothing.to_string());
     let preview_description_text = raw_result
         .as_ref()
         .and_then(|v| json_path::resolve_as_string(v, &description_path.read()))
-        .unwrap_or_else(|| "(rien)".to_string());
+        .unwrap_or_else(|| i18n_text.nothing.to_string());
     let has_test_result = raw_result.is_some();
 
     rsx! {
         div { class: "source-editor",
             if is_shared {
                 p { class: "form-error",
-                    "Cette source est reliée à plusieurs sous-catégories : la modifier changera son comportement partout où elle est utilisée."
+                    "{i18n_text.shared_source_warning}"
                 }
             }
             div { class: "item-form-field",
-                label { "Nom de la source" }
+                label { "{i18n_text.source_name}" }
                 input {
                     r#type: "text",
                     value: "{name}",
@@ -256,7 +259,7 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
                 }
             }
             div { class: "item-form-field",
-                label { "URL de recherche (avec {{query}})" }
+                label { "{i18n_text.search_url_label}" }
                 input {
                     r#type: "text",
                     placeholder: "https://api.jikan.moe/v4/anime?q={{query}}",
@@ -266,7 +269,7 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
             }
             div { class: "item-form-row",
                 div { class: "item-form-field",
-                    label { "Chemin vers la liste de résultats" }
+                    label { "{i18n_text.results_path_label}" }
                     input {
                         r#type: "text",
                         placeholder: "data",
@@ -275,7 +278,7 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
                     }
                 }
                 div { class: "item-form-field",
-                    label { "Chemin vers le titre" }
+                    label { "{i18n_text.title_path_label}" }
                     input {
                         r#type: "text",
                         placeholder: "title",
@@ -286,7 +289,7 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
             }
             div { class: "item-form-row",
                 div { class: "item-form-field",
-                    label { "Chemin vers l'image" }
+                    label { "{i18n_text.image_path_label}" }
                     input {
                         r#type: "text",
                         placeholder: "images.jpg.image_url",
@@ -295,7 +298,7 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
                     }
                 }
                 div { class: "item-form-field",
-                    label { "Chemin vers la description" }
+                    label { "{i18n_text.description_path_label}" }
                     input {
                         r#type: "text",
                         placeholder: "synopsis",
@@ -305,7 +308,7 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
                 }
             }
 
-            h3 { "Champs additionnels (tomes, épisodes, saisons...)" }
+            h3 { "{i18n_text.extra_fields_title}" }
             ul { class: "source-field-list",
                 for (index , label , path) in extra_field_rows {
                     li { key: "{index}",
@@ -324,13 +327,13 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
             div { class: "item-form-row",
                 input {
                     r#type: "text",
-                    placeholder: "Label (ex: Tomes)",
+                    placeholder: "{i18n_text.extra_field_label_placeholder}",
                     value: "{new_field_label}",
                     oninput: move |e| new_field_label.set(e.value()),
                 }
                 input {
                     r#type: "text",
-                    placeholder: "Chemin JSON (ex: volumes)",
+                    placeholder: "{i18n_text.json_path_placeholder}",
                     value: "{new_field_path}",
                     oninput: move |e| new_field_path.set(e.value()),
                 }
@@ -351,18 +354,18 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
                             new_field_path.set(String::new());
                         }
                     },
-                    "Ajouter le champ"
+                    "{i18n_text.add_field}"
                 }
             }
 
-            h3 { "Tester" }
+            h3 { "{i18n_text.test_title}" }
             p { class: "toolbar-hint",
-                "Fais une recherche d'essai pour vérifier que tes chemins renvoient bien les bonnes valeurs."
+                "{i18n_text.test_hint}"
             }
             div { class: "item-form-row",
                 input {
                     r#type: "text",
-                    placeholder: "Ex: Mushoku Tensei",
+                    placeholder: "{i18n_text.test_query_placeholder}",
                     value: "{test_query}",
                     oninput: move |e| test_query.set(e.value()),
                 }
@@ -393,36 +396,36 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
                             spawn(async move {
                                 match net::search(&candidate, &query).await {
                                     Ok(found) => test_raw_result.set(found.into_iter().next()),
-                                    Err(e) => test_error.set(Some(e.0)),
+                                    Err(e) => test_error.set(Some(e)),
                                 }
                                 is_testing.set(false);
                             });
                         }
                     },
                     if *is_testing.read() {
-                        "Test en cours..."
+                        "{i18n_text.testing}"
                     } else {
-                        "Lancer le test"
+                        "{i18n_text.run_test}"
                     }
                 }
             }
 
-            if let Some(message) = test_error.read().clone() {
-                p { class: "form-error", "{message}" }
+            if let Some(error) = test_error.read().clone() {
+                p { class: "form-error", {i18n_text.search_error(&error)} }
             }
 
             if has_test_result {
                 div { class: "source-test-preview",
                     p {
-                        "Titre extrait : "
+                        "{i18n_text.extracted_title}"
                         strong { "{preview_title_text}" }
                     }
                     p {
-                        "Image extraite : "
+                        "{i18n_text.extracted_image}"
                         strong { "{preview_image_text}" }
                     }
                     p {
-                        "Description extraite : "
+                        "{i18n_text.extracted_description}"
                         strong { "{preview_description_text}" }
                     }
                 }
@@ -433,7 +436,7 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
                     r#type: "button",
                     class: "secondary-btn",
                     onclick: move |_| oncancel.call(()),
-                    "Annuler"
+                    "{i18n_text.cancel}"
                 }
                 button {
                     r#type: "button",
@@ -455,7 +458,7 @@ fn SourceEditor(draft: ApiSource, oncancel: EventHandler<()>, onsave: EventHandl
                                 });
                         }
                     },
-                    "Enregistrer"
+                    "{i18n_text.save}"
                 }
             }
         }

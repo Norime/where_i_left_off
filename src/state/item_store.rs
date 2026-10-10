@@ -6,6 +6,9 @@ pub struct ItemStore {
     pub items: Vec<Item>,
     next_item_id: usize,
 }
+/// L'élément n'a plus qu'un placement : on refuse de le retirer.
+#[derive(Debug)]
+pub struct LastPlacement;
 
 impl ItemStore {
     pub fn add_item(
@@ -134,10 +137,10 @@ impl ItemStore {
 
     /// Retire un placement précis d'un élément. Refuse si c'est son dernier
     /// placement.
-    pub fn remove_placement(&mut self, item_id: usize, category_id: usize, subcategory_id: usize) -> Result<(), String> {
+    pub fn remove_placement(&mut self, item_id: usize, category_id: usize, subcategory_id: usize) -> Result<(), LastPlacement> {
         if let Some(item) = self.items.iter_mut().find(|i| i.id == item_id) {
             if item.placements.len() <= 1 {
-                return Err("Un élément doit rester dans au moins une catégorie.".to_string());
+                return Err(LastPlacement);
             }
             item.placements.retain(|p| !(p.category_id == category_id && p.subcategory_id == subcategory_id));
         }

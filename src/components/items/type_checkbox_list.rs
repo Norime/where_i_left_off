@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use std::collections::HashSet;
+use crate::i18n::use_texts;
 use crate::state::TypeStore;
 
 /// Liste de cases à cocher pour choisir un ou plusieurs types, limitée aux
@@ -7,6 +8,7 @@ use crate::state::TypeStore;
 /// l'appelant : cocher/décocher ici met à jour son état directement.
 #[component]
 pub fn TypeCheckboxList(category_ids: Vec<usize>, selected: Signal<HashSet<usize>>) -> Element {
+    let i18n_text = use_texts();
     let type_store = use_context::<Signal<TypeStore>>();
 
     let type_checkbox_state: Vec<(usize, String, bool)> = type_store.read().types.iter()
@@ -16,7 +18,7 @@ pub fn TypeCheckboxList(category_ids: Vec<usize>, selected: Signal<HashSet<usize
 
     rsx! {
         if type_checkbox_state.is_empty() {
-            span { class: "toolbar-hint", "Aucun type créé pour cette catégorie" }
+            span { class: "toolbar-hint", "{i18n_text.no_type_for_category}" }
         } else {
             div { class: "type-filter-list",
                 for (type_id , type_name , checked) in type_checkbox_state {

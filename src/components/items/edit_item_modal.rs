@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 
 use crate::components::{FetchedItemData, ItemSourceSearch, Modal};
+use crate::i18n::use_texts;
 use crate::models::{Item, ItemOrientation};
 use crate::state::ItemStore;
 
@@ -10,6 +11,7 @@ use crate::state::ItemStore;
 /// ici.
 #[component]
 pub fn EditItemModal(item: Item, onclose: EventHandler<()>) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
 
     let item_scopes: Vec<(usize, usize)> = item.placements.iter().map(|p| (p.category_id, p.subcategory_id)).collect();
@@ -46,7 +48,7 @@ pub fn EditItemModal(item: Item, onclose: EventHandler<()>) -> Element {
                     onclose.call(());
                 },
 
-                h2 { "Modifier l'élément" }
+                h2 { "{i18n_text.edit_item_title}" }
 
                 ItemSourceSearch {
                     scopes: item_scopes.clone(),
@@ -62,7 +64,7 @@ pub fn EditItemModal(item: Item, onclose: EventHandler<()>) -> Element {
 
                 div { class: "item-form-row",
                     div { class: "item-form-field",
-                        label { "Titre" }
+                        label { "{i18n_text.title}" }
                         input {
                             r#type: "text",
                             value: "{title}",
@@ -70,7 +72,7 @@ pub fn EditItemModal(item: Item, onclose: EventHandler<()>) -> Element {
                         }
                     }
                     div { class: "item-form-field",
-                        label { "URL de l'image" }
+                        label { "{i18n_text.image_url}" }
                         input {
                             r#type: "text",
                             value: image_url.read().clone().unwrap_or_default(),
@@ -83,7 +85,7 @@ pub fn EditItemModal(item: Item, onclose: EventHandler<()>) -> Element {
                 }
 
                 div { class: "item-form-field",
-                    label { "Description" }
+                    label { "{i18n_text.description}" }
                     textarea {
                         class: "item-form-textarea",
                         value: "{description}",
@@ -93,7 +95,7 @@ pub fn EditItemModal(item: Item, onclose: EventHandler<()>) -> Element {
 
                 div { class: "item-form-row",
                     div { class: "item-form-field",
-                        label { "Format" }
+                        label { "{i18n_text.format}" }
                         select {
                             value: match *orientation.read() {
                                 ItemOrientation::Vertical => "vertical",
@@ -109,8 +111,8 @@ pub fn EditItemModal(item: Item, onclose: EventHandler<()>) -> Element {
                                         },
                                     );
                             },
-                            option { value: "vertical", "Vertical" }
-                            option { value: "horizontal", "Horizontal" }
+                            option { value: "vertical", "{i18n_text.vertical}" }
+                            option { value: "horizontal", "{i18n_text.horizontal}" }
                         }
                     }
                 }
@@ -120,13 +122,13 @@ pub fn EditItemModal(item: Item, onclose: EventHandler<()>) -> Element {
                         r#type: "button",
                         class: "secondary-btn",
                         onclick: move |_| onclose.call(()),
-                        "Annuler"
+                        "{i18n_text.cancel}"
                     }
                     button {
                         r#type: "submit",
                         class: "primary-btn",
                         disabled: !can_save,
-                        "Enregistrer"
+                        "{i18n_text.save}"
                     }
                 }
             }

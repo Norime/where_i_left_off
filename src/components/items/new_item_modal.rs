@@ -3,11 +3,13 @@ use std::collections::HashSet;
 use dioxus::prelude::*;
 
 use crate::components::{FetchedItemData, InlineAddForm, ItemSourceSearch, Modal, TypeCheckboxList};
+use crate::i18n::use_texts;
 use crate::models::{ItemInfoField, ItemOrientation, ItemPlacement, ItemStatus, WorkStatus};
 use crate::state::{ItemStore, TypeStore};
 
 #[component]
 pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHandler<()>) -> Element {
+    let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut type_store = use_context::<Signal<TypeStore>>();
 
@@ -53,7 +55,7 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                     onclose.call(());
                 },
 
-                h2 { "Nouvel élément" }
+                h2 { "{i18n_text.new_item_title}" }
 
                 ItemSourceSearch {
                     scopes: vec![(category_id, subcategory_id)],
@@ -69,7 +71,7 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
 
                 div { class: "item-form-row",
                     div { class: "item-form-field",
-                        label { "Titre" }
+                        label { "{i18n_text.title}" }
                         input {
                             r#type: "text",
                             value: "{title}",
@@ -77,7 +79,7 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                         }
                     }
                     div { class: "item-form-field",
-                        label { "URL de l'image" }
+                        label { "{i18n_text.image_url}" }
                         input {
                             r#type: "text",
                             value: image_url.read().clone().unwrap_or_default(),
@@ -90,7 +92,7 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                 }
 
                 div { class: "item-form-field",
-                    label { "Description" }
+                    label { "{i18n_text.description}" }
                     textarea {
                         class: "item-form-textarea",
                         value: "{description}",
@@ -100,13 +102,13 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
 
                 div { class: "item-form-row",
                     div { class: "item-form-field",
-                        label { "Type" }
+                        label { "{i18n_text.type_label}" }
                         TypeCheckboxList {
                             category_ids: vec![category_id],
                             selected: selected_type_ids,
                         }
                         InlineAddForm {
-                            placeholder: "Nouveau type",
+                            placeholder: "{i18n_text.new_type}",
                             onsubmit: move |name: String| {
                                 let new_id = type_store.write().add_type(category_id, name);
                                 selected_type_ids.write().insert(new_id);
@@ -114,7 +116,7 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                         }
                     }
                     div { class: "item-form-field",
-                        label { "Format" }
+                        label { "{i18n_text.format}" }
                         select {
                             value: match *orientation.read() {
                                 ItemOrientation::Vertical => "vertical",
@@ -130,8 +132,8 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                                         },
                                     );
                             },
-                            option { value: "vertical", "Vertical" }
-                            option { value: "horizontal", "Horizontal" }
+                            option { value: "vertical", "{i18n_text.vertical}" }
+                            option { value: "horizontal", "{i18n_text.horizontal}" }
                         }
                     }
                 }
@@ -141,13 +143,13 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                         r#type: "button",
                         class: "secondary-btn",
                         onclick: move |_| onclose.call(()),
-                        "Annuler"
+                        "{i18n_text.cancel}"
                     }
                     button {
                         r#type: "submit",
                         class: "primary-btn",
                         disabled: !can_save,
-                        "Créer"
+                        "{i18n_text.create}"
                     }
                 }
             }

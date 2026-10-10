@@ -3,9 +3,17 @@ use serde_json::Value;
 
 use crate::models::ApiSource;
 
-/// Une erreur de recherche, avec un message déjà prêt à afficher à
-/// l'utilisateur (pas besoin de connaître les types internes de reqwest).
-pub struct SearchError(pub String);
+/// Une erreur de recherche. Le message affiché est construit au moment de
+/// l'affichage par `Texts::search_error`, donc dans la langue courante.
+#[derive(Clone, Debug)]
+pub enum SearchError {
+    /// Impossible de joindre l'API (réseau, DNS, URL invalide...).
+    Unreachable(String),
+    /// L'API a répondu avec un code HTTP d'erreur.
+    HttpStatus(String),
+    /// La réponse n'est pas du JSON.
+    InvalidJson(String),
+}
 
 /// Interroge la source configurée avec le titre donné et renvoie la liste
 /// brute des résultats JSON trouvés (avant tout mapping de champs, qui se
@@ -24,19 +32,16 @@ pub async fn search(source: &ApiSource, query: &str) -> Result<Vec<Value>, Searc
 
     let response = reqwest::get(&url)
         .await
-        .map_err(|e| SearchError(format!("Impossible de contacter l'API : {e}")))?;
+        .map_err(|e| SearchError::Unreachable(e.to_string()))?;
 
     if !response.status().is_success() {
-        return Err(SearchError(format!(
-            "L'API a répondu avec le code {}",
-            response.status()
-        )));
+        return Err(SearchError::HttpStatus(response.status().to_string()));
     }
 
     let body: Value = response
         .json()
         .await
-        .map_err(|e| SearchError(format!("Réponse invalide (ce n'est pas du JSON) : {e}")))?;
+        .map_err(|e| SearchError::InvalidJson(e.to_string()))?;
 
     let results = crate::json_path::resolve_as_array(&body, &source.results_path)
         .cloned()
