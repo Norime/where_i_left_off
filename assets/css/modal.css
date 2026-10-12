@@ -180,6 +180,11 @@
     width: 600px;
     max-width: 90vw;
     color: #222;
+    /* Une modale plus haute que l'écran défile à l'intérieur au lieu de
+       déborder (le fond la centre, donc elle dépasserait en haut ET en bas). */
+    max-height: 90vh;
+    overflow-y: auto;
+    box-sizing: border-box;
 }
 
 .modal-box h2 {

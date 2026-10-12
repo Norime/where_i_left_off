@@ -114,6 +114,7 @@ impl ItemStore {
                     progress: Vec::new(),
                     work_status: WorkStatus::default(),
                     tabs: Vec::new(),
+                    imported_from: None,
                 });
             }
         }

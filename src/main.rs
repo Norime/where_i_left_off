@@ -10,6 +10,7 @@ mod net;
 mod pages;
 mod persistence;
 mod routes;
+mod source_import;
 mod state;
 
 use pages::AuthScreen;

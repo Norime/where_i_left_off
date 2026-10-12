@@ -349,3 +349,22 @@
     border: 1px solid #ccc;
     border-radius: 4px;
 }
+.source-list-level {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    padding: 0.75rem;
+}
+.source-list-level-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.source-list-level-header input {
+    flex: 1;
+}
+.progress-reimport {
+    margin-bottom: 0.75rem;
+}

@@ -88,6 +88,18 @@ pub struct ItemPlacement {
     pub work_status: WorkStatus,
     #[serde(default)]
     pub tabs: Vec<ItemTab>,
+    /// Source qui a rempli la progression, pour pouvoir la réimporter.
+    #[serde(default)]
+    pub imported_from: Option<ImportedFrom>,
+}
+
+/// D'où vient la progression importée d'un placement : la source utilisée
+/// et le résultat de recherche choisi, gardé tel quel pour pouvoir
+/// réimporter plus tard (nouveaux épisodes...) sans refaire la recherche.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ImportedFrom {
+    pub source_id: usize,
+    pub root_result: serde_json::Value,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

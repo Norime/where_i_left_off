@@ -3,8 +3,10 @@ use std::collections::HashSet;
 
 use crate::components::{DeleteButton, Modal};
 use crate::i18n::{use_texts, Language};
-use crate::models::{ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind};
-use crate::state::ItemStore;
+use crate::models::{ImportedFrom, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind};
+use crate::net::SearchError;
+use crate::source_import;
+use crate::state::{ItemStore, SourceStore};
 
 /// Panneau de suivi de progression d'un placement précis (une catégorie +
 /// sous-catégorie données).
@@ -21,17 +23,25 @@ pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) 
     let expanded = use_signal(HashSet::<usize>::new);
     let editing_card = use_signal(|| None::<usize>);
 
-    let progress: Vec<ProgressNode> = item_store
+    let (progress, imported_from): (Vec<ProgressNode>, Option<ImportedFrom>) = item_store
         .read()
         .items
         .iter()
         .find(|i| i.id == item_id)
         .and_then(|i| i.placements.iter().find(|p| p.category_id == category_id && p.subcategory_id == subcategory_id))
-        .map(|p| p.progress.clone())
+        .map(|p| (p.progress.clone(), p.imported_from.clone()))
         .unwrap_or_default();
 
     rsx! {
         div { class: "progress-panel",
+            if let Some(imported_from) = imported_from {
+                ReimportButton {
+                    item_id,
+                    category_id,
+                    subcategory_id,
+                    imported_from,
+                }
+            }
             ProgressNodeList {
                 item_id,
                 category_id,
@@ -41,6 +51,83 @@ pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) 
                 children_kind: Some(ProgressNodeKind::Group),
                 expanded,
                 editing_card,
+            }
+        }
+    }
+}
+
+/// Réimporte la liste d'éléments depuis la source qui l'a créée (nouveaux
+/// épisodes, chapitres...), en gardant ce qui était déjà coché. N'affiche
+/// rien si la source a été supprimée ou ne décrit plus de liste.
+#[component]
+fn ReimportButton(item_id: usize, category_id: usize, subcategory_id: usize, imported_from: ImportedFrom) -> Element {
+    let i18n_text = use_texts();
+    let mut item_store = use_context::<Signal<ItemStore>>();
+    let source_store = use_context::<Signal<SourceStore>>();
+    let mut is_loading = use_signal(|| false);
+    let mut error = use_signal(|| None::<SearchError>);
+
+    let source = source_store
+        .read()
+        .sources
+        .iter()
+        .find(|s| s.id == imported_from.source_id && !s.list_levels.is_empty())
+        .cloned();
+    let Some(source) = source else {
+        return rsx! {};
+    };
+    let source_name = source.name.clone();
+
+    rsx! {
+        div { class: "progress-reimport",
+            button {
+                r#type: "button",
+                class: "secondary-btn",
+                disabled: is_loading(),
+                onclick: move |_| {
+                    let source = source.clone();
+                    let root_result = imported_from.root_result.clone();
+                    is_loading.set(true);
+                    error.set(None);
+                    spawn(async move {
+                        match source_import::fetch_progress(&source, &root_result, source_import::MAX_PAGES)
+                            .await
+                        {
+                            Ok(fresh) => {
+                                let old: Vec<ProgressNode> = item_store
+                                    .read()
+                                    .items
+                                    .iter()
+                                    .find(|i| i.id == item_id)
+                                    .and_then(|i| {
+                                        i
+                                            .placements
+                                            .iter()
+                                            .find(|p| {
+                                                p.category_id == category_id
+                                                    && p.subcategory_id == subcategory_id
+                                            })
+                                    })
+                                    .map(|p| p.progress.clone())
+                                    .unwrap_or_default();
+                                let merged = source_import::merge_progress(&old, fresh);
+                                item_store
+                                    .write()
+                                    .set_placement_progress(item_id, category_id, subcategory_id, merged);
+                            }
+                            Err(e) => error.set(Some(e)),
+                        }
+                        is_loading.set(false);
+                    });
+                },
+                if is_loading() {
+                    "{i18n_text.importing_list}"
+                } else {
+                    {(i18n_text.reimport_from)(&source_name)}
+                }
+            }
+            if let Some(error) = error() {
+                p { class: "form-error", {i18n_text.search_error(&error)} }
             }
         }
     }

@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 
 use crate::components::{FetchedItemData, InlineAddForm, ItemSourceSearch, Modal, TypeCheckboxList};
 use crate::i18n::use_texts;
-use crate::models::{ItemInfoField, ItemOrientation, ItemPlacement, ItemStatus, WorkStatus};
+use crate::models::{ImportedFrom, ItemInfoField, ItemOrientation, ItemPlacement, ItemStatus, ProgressNode, ProgressNodeKind, WorkStatus};
 use crate::state::{ItemStore, TypeStore};
 
 #[component]
@@ -19,8 +19,11 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
     let mut orientation = use_signal(|| ItemOrientation::Vertical);
     let mut selected_type_ids = use_signal(HashSet::<usize>::new);
     let mut extra_info = use_signal(Vec::<ItemInfoField>::new);
+    let mut progress = use_signal(Vec::<ProgressNode>::new);
+    let mut imported_from = use_signal(|| Option::<ImportedFrom>::None);
 
     let can_save = !title.read().trim().is_empty();
+    let imported_count = progress.read().iter().filter(|n| n.kind != ProgressNodeKind::Group).count();
 
     rsx! {
         Modal { onclose: move |_| onclose.call(()),
@@ -37,9 +40,10 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                         subcategory_id,
                         status: ItemStatus::New,
                         type_ids: selected_type_ids.read().iter().cloned().collect(),
-                        progress: Vec::new(),
+                        progress: progress.read().clone(),
                         work_status: WorkStatus::default(),
                         tabs: Vec::new(),
+                        imported_from: imported_from.read().clone(),
                     };
 
                     item_store
@@ -59,6 +63,7 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
 
                 ItemSourceSearch {
                     scopes: vec![(category_id, subcategory_id)],
+                    import_progress: true,
                     on_apply: move |data: FetchedItemData| {
                         title.set(data.title);
                         if data.image_url.is_some() {
@@ -66,7 +71,13 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                         }
                         description.set(data.description);
                         extra_info.set(data.extra_info);
+                        progress.set(data.progress);
+                        imported_from.set(data.imported_from);
                     },
+                }
+
+                if imported_count > 0 {
+                    p { class: "toolbar-hint", {(i18n_text.imported_entries)(imported_count)} }
                 }
 
                 div { class: "item-form-row",
