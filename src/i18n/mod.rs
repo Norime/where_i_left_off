@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::net::SearchError;
 use crate::state::UserStore;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Language {
     #[default]
@@ -162,6 +162,13 @@ pub struct Texts {
     pub new_category: &'static str,
     pub new_subcategory: &'static str,
     pub subcategory_all: &'static str,
+    pub settings: &'static str,
+    pub category_settings_title: &'static str,
+    pub subcategory_settings_title: &'static str,
+    pub name_label: &'static str,
+    pub translated_names: &'static str,
+    pub translated_names_hint: &'static str,
+    pub add_language: &'static str,
     pub home: &'static str,
     pub new_releases: &'static str,
     pub no_new_releases: &'static str,

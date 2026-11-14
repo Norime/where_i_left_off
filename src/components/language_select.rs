@@ -59,7 +59,7 @@ pub fn LanguageSelect(
 }
 
 #[component]
-fn LanguageFlag(language: Language) -> Element {
+pub fn LanguageFlag(language: Language) -> Element {
     let svg = language.flag_svg();
     rsx! {
         span { class: "language-flag", dangerous_inner_html: svg }

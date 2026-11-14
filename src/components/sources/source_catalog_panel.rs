@@ -32,7 +32,7 @@ pub fn SourceCatalogPanel(#[props(default)] fixed_scope: Option<SourceScope>) ->
             .filter_map(|scope| {
                 let category = store.categories.iter().find(|c| c.id == scope.category_id)?;
                 let subcategory = category.subcategories.iter().find(|s| s.id == scope.subcategory_id)?;
-                Some(format!("{} › {}", category.name, subcategory.name))
+                Some(format!("{} › {}", category.display_name(language), subcategory.display_name(language)))
             })
             .collect::<Vec<_>>()
             .join(", ")

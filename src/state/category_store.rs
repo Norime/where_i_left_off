@@ -1,5 +1,25 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use crate::i18n::Language;
 use crate::models::Category;
+
+/// Applique un nouveau nom et de nouvelles traductions (texte nettoyé).
+fn apply_names(
+    name: &mut String,
+    translations: &mut HashMap<Language, String>,
+    new_name: String,
+    new_translations: HashMap<Language, String>,
+) {
+    let new_name = new_name.trim();
+    if !new_name.is_empty() {
+        *name = new_name.to_string();
+    }
+    *translations = new_translations
+        .into_iter()
+        .map(|(lang, t)| (lang, t.trim().to_string()))
+        .filter(|(_, t)| !t.is_empty())
+        .collect();
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CategoryStore {
@@ -31,6 +51,36 @@ impl CategoryStore {
     pub fn add_subcategory(&mut self, category_id: usize, name: String) {
         if let Some(category) = self.categories.iter_mut().find(|c| c.id == category_id) {
             category.add_subcategory(name);
+        }
+    }
+
+    /// Renomme une catégorie et remplace ses noms traduits. Un nom vide
+    /// conserve l'ancien ; les traductions vides sont ignorées.
+    pub fn update_category(&mut self, category_id: usize, name: String, translations: HashMap<Language, String>) {
+        if let Some(category) = self.categories.iter_mut().find(|c| c.id == category_id) {
+            apply_names(&mut category.name, &mut category.translations, name, translations);
+        }
+    }
+
+    /// Même chose que `update_category` pour une sous-catégorie ("All",
+    /// id 0, n'est pas modifiable : son nom suit la langue de l'interface).
+    pub fn update_subcategory(
+        &mut self,
+        category_id: usize,
+        subcategory_id: usize,
+        name: String,
+        translations: HashMap<Language, String>,
+    ) {
+        if subcategory_id == 0 {
+            return;
+        }
+        if let Some(sub) = self
+            .categories
+            .iter_mut()
+            .find(|c| c.id == category_id)
+            .and_then(|c| c.subcategories.iter_mut().find(|s| s.id == subcategory_id))
+        {
+            apply_names(&mut sub.name, &mut sub.translations, name, translations);
         }
     }
 

@@ -31,8 +31,8 @@ pub fn AddCatalogSourceModal(
         .categories
         .iter()
         .map(|c| {
-            let subs = c.subcategories.iter().filter(|s| s.id != 0).map(|s| (s.id, s.name.clone())).collect();
-            (c.id, c.name.clone(), subs)
+            let subs = c.subcategories.iter().filter(|s| s.id != 0).map(|s| (s.id, s.display_name(ui_language).to_string())).collect();
+            (c.id, c.display_name(ui_language).to_string(), subs)
         })
         .filter(|(_, _, subs): &(usize, String, Vec<(usize, String)>)| !subs.is_empty())
         .collect();

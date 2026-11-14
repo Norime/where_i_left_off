@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::{FetchedItemData, ItemSourceSearch, Modal};
-use crate::i18n::use_texts;
+use crate::i18n::{use_texts, Language};
 use crate::models::{ImportedFrom, ProgressNode, ProgressNodeKind};
 use crate::state::{CategoryStore, ItemStore};
 
@@ -13,6 +13,7 @@ use crate::state::{CategoryStore, ItemStore};
 #[component]
 pub fn AddPlacementModal(item_id: usize, onclose: EventHandler<()>) -> Element {
     let i18n_text = use_texts();
+    let language = use_context::<Memo<Language>>()();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let category_store = use_context::<Signal<CategoryStore>>();
 
@@ -30,13 +31,13 @@ pub fn AddPlacementModal(item_id: usize, onclose: EventHandler<()>) -> Element {
 
     let available_categories: Vec<(usize, String)> = category_store.read().categories.iter()
         .filter(|c| c.subcategories.iter().any(|s| s.id != 0))
-        .map(|c| (c.id, c.name.clone()))
+        .map(|c| (c.id, c.display_name(language).to_string()))
         .collect();
 
     let available_subcategories: Vec<(usize, String)> = match selected_category() {
         Some(cat_id) => category_store.read().categories.iter()
             .find(|c| c.id == cat_id)
-            .map(|c| c.subcategories.iter().filter(|s| s.id != 0).map(|s| (s.id, s.name.clone())).collect())
+            .map(|c| c.subcategories.iter().filter(|s| s.id != 0).map(|s| (s.id, s.display_name(language).to_string())).collect())
             .unwrap_or_default(),
         None => Vec::new(),
     };

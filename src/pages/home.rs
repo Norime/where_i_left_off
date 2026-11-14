@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 use crate::components::sources::SourceCatalogPanel;
-use crate::i18n::use_texts;
+use crate::i18n::{use_texts, Language};
 use crate::models::{Category, Item, ItemPlacement, ProgressNodeKind};
 use crate::routes::Route;
 use crate::source_import;
@@ -49,6 +49,7 @@ enum HomeTab {
 fn group_by_category<T>(
     categories: &[Category],
     items: &[Item],
+    language: Language,
     make: impl Fn(&Item, &ItemPlacement, String) -> Option<T>,
 ) -> Vec<(usize, String, Vec<T>)> {
     categories
@@ -62,13 +63,13 @@ fn group_by_category<T>(
                             .subcategories
                             .iter()
                             .find(|s| s.id == p.subcategory_id)
-                            .map(|s| s.name.clone())
+                            .map(|s| s.display_name(language).to_string())
                             .unwrap_or_default();
                         make(item, p, subcategory_name)
                     })
                 })
                 .collect();
-            (category.id, category.name.clone(), entries)
+            (category.id, category.display_name(language).to_string(), entries)
         })
         .filter(|(_, _, entries)| !entries.is_empty())
         .collect()
@@ -83,6 +84,7 @@ fn group_by_category<T>(
 #[component]
 pub fn Home() -> Element {
     let i18n_text = use_texts();
+    let language = use_context::<Memo<Language>>()();
     let item_store = use_context::<Signal<ItemStore>>();
     let category_store = use_context::<Signal<CategoryStore>>();
     let source_store = use_context::<Signal<SourceStore>>();
@@ -95,7 +97,7 @@ pub fn Home() -> Element {
     let now = source_import::now_secs();
     let mut tab = use_signal(|| HomeTab::NewReleases);
 
-    let sections = group_by_category(&category_store.read().categories, &item_store.read().items, |item, p, subcategory_name| {
+    let sections = group_by_category(&category_store.read().categories, &item_store.read().items, language, |item, p, subcategory_name| {
         let new_titles: Vec<String> = source_import::recent_new_leaves(&p.progress, now)
             .iter()
             .map(|n| match source_import::release_date(n) {
@@ -115,7 +117,7 @@ pub fn Home() -> Element {
     });
 
     // Commencées (au moins un élément coché) mais pas finies.
-    let continue_sections = group_by_category(&category_store.read().categories, &item_store.read().items, |item, p, subcategory_name| {
+    let continue_sections = group_by_category(&category_store.read().categories, &item_store.read().items, language, |item, p, subcategory_name| {
         let leaves: Vec<_> = p.progress.iter().filter(|n| n.kind != ProgressNodeKind::Group).collect();
         let done = leaves.iter().filter(|n| n.is_done).count();
         let next = leaves.iter().find(|n| !n.is_done)?;

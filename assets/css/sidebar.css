@@ -128,17 +128,102 @@
     font-weight: bold;
 }
 
-/* Suppression de catégorie / sous-catégorie : bouton rouge bien visible. */
-.sidebar .delete-btn {
+/* Bouton de configuration d'une catégorie / sous-catégorie. */
+.settings-btn {
+    background: none;
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    padding: 0.1rem 0.35rem;
+}
+
+.settings-btn:hover {
+    border-color: #ccc;
+    color: white;
+}
+
+/* Modale de configuration (rendue dans la sidebar mais sur fond blanc). */
+.category-settings .translation-list {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.category-settings .translation-list legend {
+    font-size: 0.85rem;
+    color: #444;
+    padding: 0 0.3rem;
+}
+
+.category-settings .translation-hint {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #777;
+}
+
+.category-settings .translation-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.category-settings .translation-language {
+    width: 5.5rem;
+    font-size: 0.85rem;
+    color: #444;
+}
+
+.category-settings .translation-row input {
+    flex: 1;
+    min-width: 0;
+}
+
+.category-settings .translation-remove {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 0.3rem;
+}
+
+.category-settings .translation-remove:hover {
+    color: #c0392b;
+}
+
+.category-settings .translation-add {
+    background: none;
+    border: 1px dashed #bbb;
+    border-radius: 4px;
+    color: #555;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.7rem;
+}
+
+.category-settings .translation-add:hover {
+    border-color: #1e1e2f;
+    color: #1e1e2f;
+}
+
+.category-settings-delete {
+    margin-right: auto;
+}
+
+.category-settings .delete-btn {
     background: #c0392b;
     color: white;
     opacity: 1;
     border-radius: 4px;
-    padding: 0.1rem 0.4rem;
-    font-size: 0.8rem;
-    line-height: 1.2;
+    padding: 0.4rem 0.7rem;
 }
 
-.sidebar .delete-btn:hover {
+.category-settings .delete-btn:hover {
     background: #e74c3c;
 }

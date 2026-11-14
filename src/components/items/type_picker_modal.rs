@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::InlineAddForm;
-use crate::i18n::use_texts;
+use crate::i18n::{use_texts, Language};
 use crate::state::{CategoryStore, ItemStore, TypeStore};
 
 /// Relit à chaud la liste des types du placement (catégorie/sous-catégorie)
@@ -78,6 +78,7 @@ pub fn TypePickerModal(
     onclose: EventHandler<()>,
 ) -> Element {
     let i18n_text = use_texts();
+    let language = use_context::<Memo<Language>>()();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut type_store = use_context::<Signal<TypeStore>>();
     let category_store = use_context::<Signal<CategoryStore>>();
@@ -89,7 +90,7 @@ pub fn TypePickerModal(
         .categories
         .iter()
         .find(|c| c.id == category_id)
-        .map(|c| c.name.clone())
+        .map(|c| c.display_name(language).to_string())
         .unwrap_or_else(|| i18n_text.this_category.to_string());
 
     let own_types: Vec<(usize, String, bool)> = type_store
@@ -116,7 +117,7 @@ pub fn TypePickerModal(
                 .filter(|t| t.category_id == c.id)
                 .map(|t| (t.id, t.name.clone(), current_type_ids.contains(&t.id)))
                 .collect();
-            if types.is_empty() { None } else { Some((c.id, c.name.clone(), types)) }
+            if types.is_empty() { None } else { Some((c.id, c.display_name(language).to_string(), types)) }
         })
         .collect();
 

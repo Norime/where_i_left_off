@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::components::sources::SourceCatalogPanel;
 use crate::components::{DeleteButton, Modal};
-use crate::i18n::use_texts;
+use crate::i18n::{use_texts, Language};
 use crate::models::{ApiSource, ListPagination, ProgressNode, ProgressNodeKind, SourceField, SourceListLevel, SourceScope};
 use crate::net;
 use crate::source_import;
@@ -25,6 +25,7 @@ enum ManageView {
 #[component]
 pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: EventHandler<()>) -> Element {
     let i18n_text = use_texts();
+    let language = use_context::<Memo<Language>>()();
     let mut source_store = use_context::<Signal<SourceStore>>();
     let category_store = use_context::<Signal<CategoryStore>>();
     let mut view = use_signal(|| ManageView::List);
@@ -45,7 +46,7 @@ pub fn ManageSourcesModal(category_id: usize, subcategory_id: usize, oncancel: E
             .filter_map(|scope| {
                 let category = store.categories.iter().find(|c| c.id == scope.category_id)?;
                 let subcategory = category.subcategories.iter().find(|s| s.id == scope.subcategory_id)?;
-                Some(format!("{} › {}", category.name, subcategory.name))
+                Some(format!("{} › {}", category.display_name(language), subcategory.display_name(language)))
             })
             .collect::<Vec<_>>()
             .join(", ")

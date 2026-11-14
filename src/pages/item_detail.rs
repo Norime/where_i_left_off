@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::{AddPlacementModal, DeleteButton, EditItemModal, TypePickerModal, ItemTabs};
-use crate::i18n::use_texts;
+use crate::i18n::{use_texts, Language};
 use crate::markdown;
 use crate::models::{ProgressNodeKind, WorkStatus};
 use crate::state::{CategoryStore, ItemStore, TypeStore};
@@ -13,6 +13,7 @@ use crate::state::{CategoryStore, ItemStore, TypeStore};
 #[component]
 pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Element {
     let i18n_text = use_texts();
+    let language = use_context::<Memo<Language>>()();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let category_store = use_context::<Signal<CategoryStore>>();
     let type_store = use_context::<Signal<TypeStore>>();
@@ -45,10 +46,10 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                     let category = category_store.read().categories.iter()
                         .find(|c| c.id == p.category_id)
                         .cloned();
-                    let category_name = category.as_ref().map(|c| c.name.clone()).unwrap_or_else(|| "?".to_string());
+                    let category_name = category.as_ref().map(|c| c.display_name(language).to_string()).unwrap_or_else(|| "?".to_string());
                     let subcategory_name = category.as_ref()
                         .and_then(|c| c.subcategories.iter().find(|s| s.id == p.subcategory_id).cloned())
-                        .map(|s| s.name)
+                        .map(|s| s.display_name(language).to_string())
                         .unwrap_or_else(|| "?".to_string());
                     let label = format!("{category_name} › {subcategory_name}");
                     (p.category_id, p.subcategory_id, label, p.status.value_key())

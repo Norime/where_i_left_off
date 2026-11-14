@@ -1,19 +1,20 @@
 use dioxus::prelude::*;
 use std::collections::HashSet;
 
-use crate::components::{DeleteButton, InlineAddForm};
-use crate::i18n::use_texts;
+use crate::components::{CategorySettingsModal, InlineAddForm};
+use crate::i18n::{use_texts, Language};
 use crate::models::Category;
 use crate::routes::Route;
-use crate::state::{CategoryStore, ItemStore, SourceStore, TypeStore};
+use crate::state::CategoryStore;
 
 #[component]
 pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) -> Element {
     let i18n_text = use_texts();
+    let language = use_context::<Memo<Language>>()();
     let mut category_store = use_context::<Signal<CategoryStore>>();
-    let mut item_store = use_context::<Signal<ItemStore>>();
-    let mut type_store = use_context::<Signal<TypeStore>>();
-    let mut source_store = use_context::<Signal<SourceStore>>();
+    // Élément en cours de configuration : `Some(None)` pour la catégorie,
+    // `Some(Some(id))` pour une de ses sous-catégories.
+    let mut editing = use_signal(|| None::<Option<usize>>);
     let category_id = category.id;
     let is_expanded = expanded.read().contains(&category_id);
     let toggle_icon = if is_expanded { "▼" } else { "▶" };
@@ -31,22 +32,16 @@ pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) ->
                     }
                 },
                 span { class: "category-toggle", "{toggle_icon}" }
-                span { class: "category-name", "{category.name}" }
-                DeleteButton {
-                    onconfirm: move |_| {
-                        let removed_type_ids: Vec<usize> = type_store
-                            .read()
-                            .types
-                            .iter()
-                            .filter(|t| t.category_id == category_id)
-                            .map(|t| t.id)
-                            .collect();
-                        category_store.write().remove_category(category_id);
-                        item_store.write().remove_placements_by_category(category_id);
-                        item_store.write().remove_type_references(&removed_type_ids);
-                        type_store.write().remove_types_by_category(category_id);
-                        source_store.write().remove_scopes_by_category(category_id);
+                span { class: "category-name", "{category.display_name(language)}" }
+                button {
+                    class: "settings-btn",
+                    title: "{i18n_text.settings}",
+                    // Sans `stop_propagation`, le clic replierait/déplierait la catégorie.
+                    onclick: move |evt| {
+                        evt.stop_propagation();
+                        editing.set(Some(None));
                     },
+                    "⚙"
                 }
             }
             if is_expanded {
@@ -54,7 +49,7 @@ pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) ->
                     for (sub_id , sub_name , is_all) in category
                         .subcategories
                         .iter()
-                        .map(|s| (s.id, s.name.clone(), s.id == 0))
+                        .map(|s| (s.id, s.display_name(language).to_string(), s.id == 0))
                         .collect::<Vec<_>>()
                     {
                         li { key: "{sub_id}", class: "subcategory-item",
@@ -68,12 +63,11 @@ pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) ->
                                 if is_all { "{i18n_text.subcategory_all}" } else { "{sub_name}" }
                             }
                             if !is_all {
-                                DeleteButton {
-                                    onconfirm: move |_| {
-                                        category_store.write().remove_subcategory(category_id, sub_id);
-                                        item_store.write().remove_placements_by_subcategory(category_id, sub_id);
-                                        source_store.write().remove_scopes_by_subcategory(category_id, sub_id);
-                                    },
+                                button {
+                                    class: "settings-btn",
+                                    title: "{i18n_text.settings}",
+                                    onclick: move |_| editing.set(Some(Some(sub_id))),
+                                    "⚙"
                                 }
                             }
                         }
@@ -86,6 +80,15 @@ pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) ->
                             },
                         }
                     }
+                }
+            }
+            // Rendue hors de `.category-header` pour que les clics dans la
+            // modale ne remontent pas jusqu'au repli de la catégorie.
+            if let Some(subcategory_id) = editing() {
+                CategorySettingsModal {
+                    category_id,
+                    subcategory_id,
+                    onclose: move |_| editing.set(None),
                 }
             }
         }
