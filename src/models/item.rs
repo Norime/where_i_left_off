@@ -185,6 +185,15 @@ pub struct ProgressNode {
     /// ainsi de suite").
     #[serde(default)]
     pub redirect_links: Vec<ProgressLink>,
+    /// Apparu lors d'une réimportation (nouvel épisode, chapitre...) et pas
+    /// encore vu : remis à `false` dès qu'on le coche ou qu'on marque
+    /// l'œuvre comme vue depuis l'accueil.
+    #[serde(default)]
+    pub is_new: bool,
+    /// Quand le nœud a été détecté comme nouveau (secondes Unix) : sert à ne
+    /// garder dans les nouveautés de l'accueil que les détections récentes.
+    #[serde(default)]
+    pub new_since: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

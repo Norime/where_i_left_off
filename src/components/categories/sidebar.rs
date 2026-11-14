@@ -30,6 +30,12 @@ pub fn Sidebar() -> Element {
                 span { "{username}" }
                 Link { to: Route::Profile {}, class: "profile-btn", "⚙" }
             }
+            Link {
+                to: Route::Home {},
+                class: "sidebar-home",
+                active_class: "active",
+                "🏠 {i18n_text.home}"
+            }
             h2 { class: "sidebar-title", "{i18n_text.categories}" }
             ul { class: "category-list",
                 for category in store.read().categories.iter() {

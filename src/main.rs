@@ -10,8 +10,11 @@ mod net;
 mod pages;
 mod persistence;
 mod routes;
+mod source_catalog;
+mod xml_json;
 mod source_import;
 mod state;
+mod update_check;
 
 use pages::AuthScreen;
 use routes::Route;
@@ -24,6 +27,7 @@ const AUTH_CSS: &str = include_str!("../assets/css/auth.css");
 const PROFILE_CSS: &str = include_str!("../assets/css/profile.css");
 const SOURCES_CSS: &str = include_str!("../assets/css/sources.css");
 const LANGUAGE_CSS: &str = include_str!("../assets/css/language.css");
+const HOME_CSS: &str = include_str!("../assets/css/home.css");
 
 fn main() {
     dioxus::launch(App);
@@ -60,6 +64,7 @@ fn App() -> Element {
         style { {PROFILE_CSS} }
         style { {SOURCES_CSS} }
         style { {LANGUAGE_CSS} }
+        style { {HOME_CSS} }
         {content}
     }
 }
@@ -74,6 +79,7 @@ fn AuthenticatedApp(user_id: usize) -> Element {
     let item_store = use_context_provider(|| Signal::new(persistence::load_items(user_id)));
     let type_store = use_context_provider(|| Signal::new(persistence::load_types(user_id)));
     let source_store = use_context_provider(|| Signal::new(persistence::load_sources(user_id)));
+    update_check::use_update_checker(item_store, source_store);
 
     use_effect(move || {
         persistence::save_categories(user_id, &category_store.read());

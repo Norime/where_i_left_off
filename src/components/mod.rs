@@ -6,6 +6,7 @@ mod categories;
 mod items;
 mod accounts;
 mod language_select;
+pub mod sources;
 
 pub use layout::AppLayout;
 pub use modal::Modal;

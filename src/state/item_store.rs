@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use crate::models::{Item, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind, ItemOrientation, ItemPlacement, ItemStatus, WorkStatus, ItemTab};
+use crate::source_import;
+use crate::models::{ImportedFrom, Item, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind, ItemOrientation, ItemPlacement, ItemStatus, WorkStatus, ItemTab};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct ItemStore {
@@ -202,6 +203,8 @@ impl ItemStore {
             image_url: None,
             fields: Vec::new(),
             redirect_links: Vec::new(),
+            is_new: false,
+            new_since: None,
         });
         self.recompute_placement_status(item_id, category_id, subcategory_id);
         Some(next_id)
@@ -232,6 +235,7 @@ impl ItemStore {
         if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
             if let Some(node) = placement.progress.iter_mut().find(|n| n.id == node_id) {
                 node.is_done = is_done;
+                node.is_new = false;
             }
         }
         self.recompute_placement_status(item_id, category_id, subcategory_id);
@@ -254,8 +258,11 @@ impl ItemStore {
                 index += 1;
             }
             for node in placement.progress.iter_mut() {
-                if node.kind != ProgressNodeKind::Group && to_update.contains(&node.id) {
-                    node.is_done = is_done;
+                if to_update.contains(&node.id) {
+                    node.is_new = false;
+                    if node.kind != ProgressNodeKind::Group {
+                        node.is_done = is_done;
+                    }
                 }
             }
         }
@@ -301,6 +308,36 @@ impl ItemStore {
             placement.progress = progress;
         }
         self.recompute_placement_status(item_id, category_id, subcategory_id);
+    }
+
+    /// Fusionne une liste fraîchement importée avec la progression actuelle
+    /// du placement (voir `source_import::merge_progress`) et renvoie le
+    /// nombre d'éléments nouveaux non vus après la fusion.
+    pub fn apply_reimport(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, fresh: Vec<ProgressNode>, mark_new: bool) -> usize {
+        let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) else {
+            return 0;
+        };
+        let merged = source_import::merge_progress(&placement.progress, fresh, mark_new, source_import::now_secs());
+        let new_count = source_import::new_leaves(&merged).len();
+        self.set_placement_progress(item_id, category_id, subcategory_id, merged);
+        new_count
+    }
+
+    /// Relie (ou délie) le placement à la source qui sert à le réimporter.
+    pub fn set_placement_import(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, imported_from: Option<ImportedFrom>) {
+        if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
+            placement.imported_from = imported_from;
+        }
+    }
+
+    /// "Marquer comme vu" : plus aucun nœud du placement n'est nouveau.
+    pub fn clear_new_flags(&mut self, item_id: usize, category_id: usize, subcategory_id: usize) {
+        if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
+            for node in placement.progress.iter_mut() {
+                node.is_new = false;
+                node.new_since = None;
+            }
+        }
     }
 
     // --- Onglets personnalisés (propres à chaque placement) -----------

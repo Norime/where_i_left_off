@@ -11,7 +11,7 @@ pub enum SearchError {
     Unreachable(String),
     /// L'API a répondu avec un code HTTP d'erreur.
     HttpStatus(String),
-    /// La réponse n'est pas du JSON.
+    /// La réponse n'est ni du JSON ni du XML lisible.
     InvalidJson(String),
 }
 
@@ -27,16 +27,41 @@ pub enum SearchError {
 /// ce sera à gérer plus tard avec un petit serveur relais si tu compiles
 /// un jour pour le web.
 pub async fn search(source: &ApiSource, query: &str) -> Result<Vec<Value>, SearchError> {
-    let encoded_query = utf8_percent_encode(query, NON_ALPHANUMERIC).to_string();
-    let url = source.search_url_template.replace("{query}", &encoded_query);
-
-    let body = fetch_json(&url).await?;
+    let body = search_raw(source, query).await?;
     Ok(results_array(&body, &source.results_path))
 }
 
-/// Fait un GET sur `url` et renvoie le corps de la réponse en JSON.
+/// Réponse JSON complète de la recherche, avant extraction des résultats
+/// (utile pour l'éditeur de source, qui la réinterprète à chaque frappe).
+pub async fn search_raw(source: &ApiSource, query: &str) -> Result<Value, SearchError> {
+    let encoded_query = utf8_percent_encode(query, NON_ALPHANUMERIC).to_string();
+    let url = source.search_url_template.replace("{query}", &encoded_query);
+    fetch_json(&url).await
+}
+
+/// Client HTTP partagé. Certaines API (ex: MangaDex) refusent les requêtes
+/// sans `User-Agent` (erreur 400) : on en envoie un sur desktop/mobile. Sur
+/// le web, c'est le navigateur qui fournit le sien (et interdit de le changer).
+fn http_client() -> &'static reqwest::Client {
+    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+    CLIENT.get_or_init(|| {
+        #[cfg(not(target_arch = "wasm32"))]
+        let client = reqwest::Client::builder()
+            .user_agent(concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")))
+            .build()
+            .unwrap_or_default();
+        #[cfg(target_arch = "wasm32")]
+        let client = reqwest::Client::new();
+        client
+    })
+}
+
+/// Fait un GET sur `url` et renvoie le corps de la réponse en JSON. Une
+/// réponse XML est convertie en JSON (voir `xml_json`).
 pub async fn fetch_json(url: &str) -> Result<Value, SearchError> {
-    let response = reqwest::get(url)
+    let response = http_client()
+        .get(url)
+        .send()
         .await
         .map_err(|e| SearchError::Unreachable(e.to_string()))?;
 
@@ -44,19 +69,30 @@ pub async fn fetch_json(url: &str) -> Result<Value, SearchError> {
         return Err(SearchError::HttpStatus(response.status().to_string()));
     }
 
-    response
-        .json()
-        .await
-        .map_err(|e| SearchError::InvalidJson(e.to_string()))
+    let is_xml = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.contains("xml"));
+    let text = response.text().await.map_err(|e| SearchError::Unreachable(e.to_string()))?;
+
+    if is_xml || text.trim_start().starts_with('<') {
+        crate::xml_json::parse(&text).map_err(SearchError::InvalidJson)
+    } else {
+        serde_json::from_str(&text).map_err(|e| SearchError::InvalidJson(e.to_string()))
+    }
 }
 
 /// Le tableau trouvé à `path` dans `body`, ou `body` lui-même s'il est déjà
-/// un tableau, sinon une liste vide.
+/// un tableau, sinon une liste vide. Un objet seul à `path` compte comme
+/// un unique résultat (en XML, un élément qui ne se répète pas n'est pas
+/// converti en tableau).
 pub fn results_array(body: &Value, path: &str) -> Vec<Value> {
-    crate::json_path::resolve_as_array(body, path)
-        .cloned()
-        .or_else(|| body.as_array().cloned())
-        .unwrap_or_default()
+    match crate::json_path::resolve(body, path) {
+        Some(Value::Array(results)) => results.clone(),
+        Some(result @ Value::Object(_)) if !path.trim().is_empty() => vec![result.clone()],
+        _ => body.as_array().cloned().unwrap_or_default(),
+    }
 }
 
 /// Remplace chaque marqueur `{...}` de `template` :
@@ -106,11 +142,13 @@ pub fn fill_template(template: &str, parent: &Value, root: &Value, vars: &[(&str
     (output, all_found)
 }
 
-/// Texte lisible d'une valeur JSON ; `None` pour `null`.
+/// Texte lisible d'une valeur JSON ; `None` pour `null`. Un élément XML
+/// avec attributs (objet qui a un `"#text"`) donne son texte.
 pub fn value_text(value: &Value) -> Option<String> {
     match value {
         Value::Null => None,
         Value::String(s) => Some(s.clone()),
+        Value::Object(map) if map.contains_key("#text") => value_text(&map["#text"]),
         other => Some(other.to_string()),
     }
 }

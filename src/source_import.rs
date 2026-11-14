@@ -122,7 +122,7 @@ async fn level_elements(
     Ok(elements)
 }
 
-async fn pause() {
+pub async fn pause() {
     #[cfg(not(target_arch = "wasm32"))]
     tokio::time::sleep(REQUEST_DELAY).await;
 }
@@ -165,13 +165,50 @@ fn build_node(
         image_url,
         fields,
         redirect_links: Vec::new(),
+        is_new: false,
+        new_since: None,
     }
 }
 
 /// Résout `path_or_template` sur `element` : un chemin JSON simple, ou un
 /// gabarit s'il contient `{` (dans ce cas il faut que tous ses marqueurs
 /// existent). Renvoie `None` si rien d'exploitable n'est trouvé.
-fn extract_text(path_or_template: &str, element: &Value, root: &Value) -> Option<String> {
+///
+/// Un gabarit accepte des alternatives séparées par `|` hors des accolades :
+/// `"{titre}. {tome}|{titre}"` se rabat sur le titre seul s'il n'y a pas
+/// de tome.
+pub fn extract_text(path_or_template: &str, element: &Value, root: &Value) -> Option<String> {
+    let path_or_template = path_or_template.trim();
+    if path_or_template.contains('{') {
+        return template_alternatives(path_or_template)
+            .into_iter()
+            .find_map(|alternative| extract_one(alternative, element, root));
+    }
+    extract_one(path_or_template, element, root)
+}
+
+/// Découpe `template` sur les `|` qui ne sont pas entre accolades (ceux
+/// entre accolades sont des alternatives de chemin, gérées par `json_path`).
+fn template_alternatives(template: &str) -> Vec<&str> {
+    let mut alternatives = Vec::new();
+    let mut depth = 0usize;
+    let mut start = 0;
+    for (index, character) in template.char_indices() {
+        match character {
+            '{' => depth += 1,
+            '}' => depth = depth.saturating_sub(1),
+            '|' if depth == 0 => {
+                alternatives.push(&template[start..index]);
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    alternatives.push(&template[start..]);
+    alternatives
+}
+
+fn extract_one(path_or_template: &str, element: &Value, root: &Value) -> Option<String> {
     let path_or_template = path_or_template.trim();
     if path_or_template.is_empty() {
         return None;
@@ -192,7 +229,12 @@ fn extract_text(path_or_template: &str, element: &Value, root: &Value) -> Option
 /// nœuds sont associés par leur chaîne de titres (ex: "Saison 1 / Épisode 3")
 /// pour conserver ce qui a été coché et les liens ajoutés. Les anciens nœuds
 /// absents de l'import (ajoutés à la main...) sont gardés à la fin.
-pub fn merge_progress(old: &[ProgressNode], fresh: Vec<ProgressNode>) -> Vec<ProgressNode> {
+///
+/// `mark_new` : les nœuds frais sans équivalent dans `old` sont marqués
+/// `is_new` (jamais si `old` est vide, sinon tout serait "nouveau"), avec
+/// `now` comme date de détection.
+pub fn merge_progress(old: &[ProgressNode], fresh: Vec<ProgressNode>, mark_new: bool, now: u64) -> Vec<ProgressNode> {
+    let mark_new = mark_new && !old.is_empty();
     let old_keys = node_keys(old);
     let fresh_keys = node_keys(&fresh);
     let old_by_key: HashMap<&str, &ProgressNode> = old.iter().map(|n| (old_keys[&n.id].as_str(), n)).collect();
@@ -202,9 +244,19 @@ pub fn merge_progress(old: &[ProgressNode], fresh: Vec<ProgressNode>) -> Vec<Pro
         .iter()
         .map(|node| {
             let mut node = node.clone();
-            if let Some(previous) = old_by_key.get(fresh_keys[&node.id].as_str()) {
-                node.is_done = previous.is_done;
-                node.redirect_links = previous.redirect_links.clone();
+            match old_by_key.get(fresh_keys[&node.id].as_str()) {
+                Some(previous) => {
+                    node.is_done = previous.is_done;
+                    node.redirect_links = previous.redirect_links.clone();
+                    node.is_new = previous.is_new;
+                    // Nouveauté d'avant l'ajout de `new_since` : on la date
+                    // d'aujourd'hui pour qu'elle finisse par expirer.
+                    node.new_since = previous.new_since.or(previous.is_new.then_some(now));
+                }
+                None => {
+                    node.is_new = mark_new;
+                    node.new_since = mark_new.then_some(now);
+                }
             }
             node
         })
@@ -232,6 +284,47 @@ pub fn merge_progress(old: &[ProgressNode], fresh: Vec<ProgressNode>) -> Vec<Pro
     }
 
     merged
+}
+
+/// Les éléments cochables (pas les `Group`) nouveaux et pas encore vus.
+pub fn new_leaves(nodes: &[ProgressNode]) -> Vec<&ProgressNode> {
+    nodes
+        .iter()
+        .filter(|n| n.kind != ProgressNodeKind::Group && n.is_new && !n.is_done)
+        .collect()
+}
+
+/// Durée pendant laquelle un élément détecté reste dans les nouveautés.
+pub const NEW_RELEASE_WINDOW_SECS: u64 = 14 * 24 * 3600;
+
+/// Heure actuelle en secondes Unix (fonctionne aussi en wasm).
+pub fn now_secs() -> u64 {
+    web_time::SystemTime::now()
+        .duration_since(web_time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+/// `new_leaves` limité aux éléments détectés depuis moins de
+/// `NEW_RELEASE_WINDOW_SECS`. Sans date de détection (données anciennes pas
+/// encore revérifiées), l'élément reste affiché.
+pub fn recent_new_leaves(nodes: &[ProgressNode], now: u64) -> Vec<&ProgressNode> {
+    new_leaves(nodes)
+        .into_iter()
+        .filter(|n| n.new_since.is_none_or(|since| now.saturating_sub(since) < NEW_RELEASE_WINDOW_SECS))
+        .collect()
+}
+
+/// Date de sortie fournie par la source, telle quelle : le premier champ
+/// dont le label évoque une date ("Date de sortie", "Release date"...).
+pub fn release_date(node: &ProgressNode) -> Option<&str> {
+    node.fields
+        .iter()
+        .find(|f| {
+            let label = f.label.to_lowercase();
+            ["date", "sortie", "release", "air"].iter().any(|word| label.contains(word))
+        })
+        .map(|f| f.value.as_str())
 }
 
 /// Clé de fusion de chaque nœud (par id) : sa chaîne de titres, suivie de
@@ -266,4 +359,20 @@ fn title_chain(nodes: &[ProgressNode], node: &ProgressNode) -> String {
     }
     titles.reverse();
     titles.join("\u{1f}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_text;
+    use serde_json::json;
+
+    #[test]
+    fn template_alternatives_fall_back_when_a_marker_is_missing() {
+        let with_volume = json!({ "title": "Frieren", "volume": "Vol. 6" });
+        let without_volume = json!({ "title": "Frieren" });
+        let template = "{title}. {volume}|{title}";
+        assert_eq!(extract_text(template, &with_volume, &with_volume).as_deref(), Some("Frieren. Vol. 6"));
+        assert_eq!(extract_text(template, &without_volume, &without_volume).as_deref(), Some("Frieren"));
+        assert_eq!(extract_text("{volume}|title", &without_volume, &without_volume).as_deref(), Some("Frieren"));
+    }
 }

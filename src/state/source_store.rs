@@ -47,6 +47,11 @@ impl SourceStore {
         }
     }
 
+    /// La source déjà créée depuis cette entrée du catalogue (même langue).
+    pub fn find_catalog_source(&self, catalog_key: &str) -> Option<&ApiSource> {
+        self.sources.iter().find(|s| s.catalog_key.as_deref() == Some(catalog_key))
+    }
+
     /// Délie une source d'une sous-catégorie précise. Si elle n'est plus
     /// reliée à rien après ça, elle est supprimée entièrement.
     pub fn unlink_source(&mut self, source_id: usize, category_id: usize, subcategory_id: usize) {

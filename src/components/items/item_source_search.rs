@@ -2,7 +2,6 @@ use dioxus::prelude::*;
 use serde_json::Value;
 
 use crate::i18n::use_texts;
-use crate::json_path;
 use crate::models::{ApiSource, ImportedFrom, ItemInfoField, ProgressNode};
 use crate::net;
 use crate::source_import;
@@ -22,12 +21,14 @@ pub struct FetchedItemData {
 
 /// `import_progress` : au choix d'un résultat, importe aussi la liste
 /// d'éléments décrite par la source (saisons, épisodes...) avant d'appeler
-/// `on_apply`.
+/// `on_apply`. `initial_query` pré-remplit le champ de recherche (ex: le
+/// titre de l'œuvre quand on lui relie une source).
 #[component]
 pub fn ItemSourceSearch(
     scopes: Vec<(usize, usize)>,
     on_apply: EventHandler<FetchedItemData>,
     #[props(default)] import_progress: bool,
+    #[props(default)] initial_query: String,
 ) -> Element {
     let i18n_text = use_texts();
     let source_store = use_context::<Signal<SourceStore>>();
@@ -45,7 +46,7 @@ pub fn ItemSourceSearch(
     .collect();
 
     let mut selected_source_id = use_signal(|| available_sources.first().map(|s| s.id));
-    let mut query = use_signal(String::new);
+    let mut query = use_signal(|| initial_query.clone());
     let mut results = use_signal(Vec::<Value>::new);
     let mut is_loading = use_signal(|| false);
     let mut is_importing = use_signal(|| false);
@@ -67,7 +68,7 @@ pub fn ItemSourceSearch(
         .map(|(index, result)| {
             let title = selected_source
                 .as_ref()
-                .and_then(|s| json_path::resolve_as_string(&result, &s.title_path))
+                .and_then(|s| source_import::extract_text(&s.title_path, &result, &result))
                 .unwrap_or_else(|| i18n_text.untitled.to_string());
             (index, title, result)
         })
@@ -196,26 +197,17 @@ pub fn ItemSourceSearch(
 }
 
 fn extract_fetched_data(source: &ApiSource, result: &Value) -> FetchedItemData {
-    let title = json_path::resolve_as_string(result, &source.title_path).unwrap_or_default();
-
-    let image_url = if source.image_path.trim().is_empty() {
-        None
-    } else {
-        json_path::resolve_as_string(result, &source.image_path)
-    };
-
-    let description = if source.description_path.trim().is_empty() {
-        String::new()
-    } else {
-        json_path::resolve_as_string(result, &source.description_path).unwrap_or_default()
-    };
+    // Chemins JSON ou gabarits (ex: "https://image.tmdb.org/t/p/w300{poster_path}").
+    let extract = |path: &str| source_import::extract_text(path, result, result);
+    let title = extract(&source.title_path).unwrap_or_default();
+    let image_url = extract(&source.image_path);
+    let description = extract(&source.description_path).unwrap_or_default();
 
     let extra_info = source
         .extra_fields
         .iter()
         .filter_map(|field| {
-            json_path::resolve_as_string(result, &field.json_path)
-                .map(|value| ItemInfoField { label: field.label.clone(), value })
+            extract(&field.json_path).map(|value| ItemInfoField { label: field.label.clone(), value })
         })
         .collect();
 

@@ -27,7 +27,7 @@ pub struct SourceScope {
 /// seule (GET, sans authentification) qu'on interroge avec un titre, et
 /// dont on sait extraire quelques champs à partir de chemins JSON définis
 /// par l'utilisateur lui-même.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ApiSource {
     pub id: usize,
     pub linked_scopes: Vec<SourceScope>,
@@ -51,6 +51,10 @@ pub struct ApiSource {
     /// (ex: [Saisons, Épisodes] ou juste [Chapitres]). Vide = pas d'import.
     #[serde(default)]
     pub list_levels: Vec<SourceListLevel>,
+    /// Entrée du catalogue d'où vient la source, avec la langue de son
+    /// contenu (ex: "tmdb_series:fr"). `None` pour une source faite main.
+    #[serde(default)]
+    pub catalog_key: Option<String>,
 }
 
 /// Comment parcourir les pages d'une liste quand l'API la découpe.

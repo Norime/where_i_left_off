@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use std::collections::HashSet;
 
-use crate::components::{DeleteButton, Modal};
+use crate::components::{DeleteButton, FetchedItemData, ItemSourceSearch, Modal};
 use crate::i18n::{use_texts, Language};
 use crate::models::{ImportedFrom, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind};
 use crate::net::SearchError;
@@ -41,6 +41,8 @@ pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) 
                     subcategory_id,
                     imported_from,
                 }
+            } else {
+                LinkSourceButton { item_id, category_id, subcategory_id }
             }
             ProgressNodeList {
                 item_id,
@@ -66,6 +68,7 @@ fn ReimportButton(item_id: usize, category_id: usize, subcategory_id: usize, imp
     let source_store = use_context::<Signal<SourceStore>>();
     let mut is_loading = use_signal(|| false);
     let mut error = use_signal(|| None::<SearchError>);
+    let mut new_count = use_signal(|| None::<usize>);
 
     let source = source_store
         .read()
@@ -89,31 +92,16 @@ fn ReimportButton(item_id: usize, category_id: usize, subcategory_id: usize, imp
                     let root_result = imported_from.root_result.clone();
                     is_loading.set(true);
                     error.set(None);
+                    new_count.set(None);
                     spawn(async move {
                         match source_import::fetch_progress(&source, &root_result, source_import::MAX_PAGES)
                             .await
                         {
                             Ok(fresh) => {
-                                let old: Vec<ProgressNode> = item_store
-                                    .read()
-                                    .items
-                                    .iter()
-                                    .find(|i| i.id == item_id)
-                                    .and_then(|i| {
-                                        i
-                                            .placements
-                                            .iter()
-                                            .find(|p| {
-                                                p.category_id == category_id
-                                                    && p.subcategory_id == subcategory_id
-                                            })
-                                    })
-                                    .map(|p| p.progress.clone())
-                                    .unwrap_or_default();
-                                let merged = source_import::merge_progress(&old, fresh);
-                                item_store
+                                let count = item_store
                                     .write()
-                                    .set_placement_progress(item_id, category_id, subcategory_id, merged);
+                                    .apply_reimport(item_id, category_id, subcategory_id, fresh, true);
+                                new_count.set(Some(count));
                             }
                             Err(e) => error.set(Some(e)),
                         }
@@ -126,8 +114,70 @@ fn ReimportButton(item_id: usize, category_id: usize, subcategory_id: usize, imp
                     {(i18n_text.reimport_from)(&source_name)}
                 }
             }
+            if let Some(count) = new_count().filter(|c| *c > 0) {
+                span { class: "progress-new-badge", {(i18n_text.new_count)(count)} }
+            }
             if let Some(error) = error() {
                 p { class: "form-error", {i18n_text.search_error(&error)} }
+            }
+        }
+    }
+}
+
+/// Pour un placement sans source : cherche l'œuvre dans une source liée à
+/// sa sous-catégorie, fusionne la liste trouvée avec la progression actuelle
+/// (cases cochées conservées) et relie le placement à cette source, pour
+/// qu'il soit inclus dans la vérification des nouveautés de l'accueil.
+#[component]
+fn LinkSourceButton(item_id: usize, category_id: usize, subcategory_id: usize) -> Element {
+    let i18n_text = use_texts();
+    let mut item_store = use_context::<Signal<ItemStore>>();
+    let source_store = use_context::<Signal<SourceStore>>();
+    let mut show_modal = use_signal(|| false);
+
+    let has_list_source = source_store
+        .read()
+        .sources_for_subcategory(category_id, subcategory_id)
+        .iter()
+        .any(|s| !s.list_levels.is_empty());
+    if !has_list_source {
+        return rsx! {};
+    }
+    let item_title = item_store
+        .read()
+        .items
+        .iter()
+        .find(|i| i.id == item_id)
+        .map(|i| i.title.clone())
+        .unwrap_or_default();
+
+    rsx! {
+        div { class: "progress-reimport",
+            button {
+                r#type: "button",
+                class: "secondary-btn",
+                onclick: move |_| show_modal.set(true),
+                "🔗 {i18n_text.link_source}"
+            }
+        }
+        if show_modal() {
+            Modal { onclose: move |_| show_modal.set(false),
+                h2 { "{i18n_text.link_source}" }
+                p { class: "toolbar-hint", "{i18n_text.link_source_hint}" }
+                ItemSourceSearch {
+                    scopes: vec![(category_id, subcategory_id)],
+                    import_progress: true,
+                    initial_query: item_title,
+                    on_apply: move |data: FetchedItemData| {
+                        let mut store = item_store.write();
+                        if !data.progress.is_empty() {
+                            store.apply_reimport(item_id, category_id, subcategory_id, data.progress, false);
+                        }
+                        store.set_placement_import(item_id, category_id, subcategory_id, data.imported_from);
+                        drop(store);
+                        show_modal.set(false);
+                    },
+                }
             }
         }
     }
@@ -156,6 +206,13 @@ fn effective_links_for(all_nodes: &[ProgressNode], node_id: usize) -> (Vec<Progr
 /// profondeur) d'un nœud sont cochés. Faux si le nœud n'a aucune feuille
 /// descendante (pas de "tout cocher" vide qui s'affiche coché).
 fn all_descendants_done(all_nodes: &[ProgressNode], node_id: usize) -> bool {
+    let leaves = descendant_leaves(all_nodes, node_id);
+    !leaves.is_empty() && leaves.iter().all(|n| n.is_done)
+}
+
+/// Les descendants "feuilles" (Text/Card) d'un nœud, à n'importe quelle
+/// profondeur.
+fn descendant_leaves(all_nodes: &[ProgressNode], node_id: usize) -> Vec<&ProgressNode> {
     let mut to_check = vec![node_id];
     let mut leaves: Vec<&ProgressNode> = Vec::new();
     let mut index = 0;
@@ -171,7 +228,7 @@ fn all_descendants_done(all_nodes: &[ProgressNode], node_id: usize) -> bool {
         }
         index += 1;
     }
-    !leaves.is_empty() && leaves.iter().all(|n| n.is_done)
+    leaves
 }
 
 /// Affiche tous les nœuds directement enfants de `parent_id` (les racines
@@ -292,6 +349,7 @@ fn ProgressNodeRow(
     let is_editing = editing_card() == Some(node_id);
     // Le label est une donnée saisie par l'utilisateur : on reconnaît le mot
     // "durée" dans toutes les langues, pas seulement la langue active.
+    let is_new = node.is_new && !node.is_done;
     let duration = node
         .fields
         .iter()
@@ -342,7 +400,12 @@ fn ProgressNodeRow(
                             span { class: "progress-card-duration", "{duration}" }
                         }
                     }
-                    span { class: "progress-card-title", "{node.title}" }
+                    span { class: "progress-card-title",
+                        "{node.title}"
+                        if is_new {
+                            span { class: "progress-new-badge", "{i18n_text.new_badge}" }
+                        }
+                    }
 
                     if is_editing {
                         ProgressCardConfigModal {
@@ -372,6 +435,10 @@ fn ProgressNodeRow(
         }
         ProgressNodeKind::Group => {
             let all_done = all_descendants_done(&all_nodes, node_id);
+            let new_inside = descendant_leaves(&all_nodes, node_id)
+                .iter()
+                .filter(|n| n.is_new && !n.is_done)
+                .count();
             rsx! {
                 div { class: "progress-node progress-group",
                     div { class: "progress-node-row",
@@ -425,6 +492,9 @@ fn ProgressNodeRow(
                                         event.value(),
                                     );
                             },
+                        }
+                        if new_inside > 0 {
+                            span { class: "progress-new-badge", {(i18n_text.new_count)(new_inside)} }
                         }
                         DeleteButton {
                             onconfirm: move |_| {
@@ -487,6 +557,9 @@ fn ProgressNodeRow(
                                     event.value(),
                                 );
                         },
+                    }
+                    if is_new {
+                        span { class: "progress-new-badge", "{i18n_text.new_badge}" }
                     }
                     button {
                         r#type: "button",

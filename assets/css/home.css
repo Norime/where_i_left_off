@@ -1,0 +1,190 @@
+.home-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.home-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.home-toolbar h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.home-toolbar .primary-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.home-check-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.home-check-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: #e2e2ea;
+    overflow: hidden;
+}
+
+.home-check-bar-fill {
+    height: 100%;
+    background: #1e1e2f;
+    transition: width 0.3s;
+}
+
+.home-check-errors ul {
+    margin: 0;
+    padding-left: 1.2rem;
+}
+
+.home-section-title {
+    font-size: 1.1rem;
+    margin: 0.5rem 0 0.6rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #e2e2ea;
+}
+
+.home-release-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.8rem;
+}
+
+.home-release {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e2e2ea;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+}
+
+.home-release-link {
+    display: flex;
+    gap: 0.7rem;
+    color: inherit;
+    text-decoration: none;
+    flex: 1;
+}
+
+.home-release-link:hover .home-release-title {
+    text-decoration: underline;
+}
+
+.home-release-image {
+    width: 72px;
+    min-height: 100px;
+    flex-shrink: 0;
+    background-color: #c9c9c9;
+    background-size: cover;
+    background-position: center;
+}
+
+.home-release-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.5rem 0.6rem 0.5rem 0;
+    min-width: 0;
+}
+
+.home-release-subcategory {
+    font-size: 0.75rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.home-release-title {
+    font-weight: bold;
+}
+
+.home-release-count,
+.progress-new-badge {
+    align-self: flex-start;
+    background: #2e8b57;
+    color: white;
+    border-radius: 999px;
+    padding: 0.05rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.home-release-preview {
+    font-size: 0.8rem;
+    color: #666;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-release-seen {
+    border: none;
+    border-top: 1px solid #e2e2ea;
+    background: #f6f6f9;
+    padding: 0.35rem;
+    font-size: 0.8rem;
+    color: #555;
+    cursor: pointer;
+}
+
+.home-release-seen:hover {
+    background: #ececf2;
+}
+
+.progress-new-badge {
+    align-self: center;
+    margin-left: 0.4rem;
+}
+
+.home-tabs {
+    display: flex;
+    gap: 0.3rem;
+    border-bottom: 1px solid #e2e2ea;
+}
+
+.home-tab {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.5rem 0.9rem;
+    font-size: 1.05rem;
+    color: #666;
+    cursor: pointer;
+}
+
+.home-tab:hover {
+    color: #1e1e2f;
+}
+
+.home-tab.active {
+    color: #1e1e2f;
+    font-weight: bold;
+    border-bottom-color: #1e1e2f;
+}
+
+.home-continue-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.home-continue-bar {
+    flex: 1;
+}
+
+.home-continue-count {
+    font-size: 0.75rem;
+    color: #666;
+    white-space: nowrap;
+}

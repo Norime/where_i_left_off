@@ -108,3 +108,37 @@
     padding: 0.2rem 0.6rem;
     cursor: pointer;
 }
+.sidebar-home {
+    display: block;
+    padding: 0.45rem 0.6rem;
+    margin-bottom: 0.8rem;
+    border-radius: 6px;
+    color: #ddd;
+    text-decoration: none;
+}
+
+.sidebar-home:hover {
+    background: #2c2c44;
+    color: white;
+}
+
+.sidebar-home.active {
+    background: #3a3a5c;
+    color: white;
+    font-weight: bold;
+}
+
+/* Suppression de catégorie / sous-catégorie : bouton rouge bien visible. */
+.sidebar .delete-btn {
+    background: #c0392b;
+    color: white;
+    opacity: 1;
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.8rem;
+    line-height: 1.2;
+}
+
+.sidebar .delete-btn:hover {
+    background: #e74c3c;
+}
