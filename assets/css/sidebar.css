@@ -1,7 +1,11 @@
 .sidebar {
     width: 220px;
-    background: #1e1e2f;
-    color: white;
+    /* Hauteur de la fenêtre (voir `.app-shell`), défile seul s'il y a
+       beaucoup de catégories. */
+    overflow-y: auto;
+    box-sizing: border-box;
+    background: var(--menu-bg);
+    color: var(--menu-text);
     padding: 1rem;
     flex-shrink: 0;
 }
@@ -12,7 +16,7 @@
     align-items: center;
     padding-bottom: 0.8rem;
     margin-bottom: 0.8rem;
-    border-bottom: 1px solid #3a3a55;
+    border-bottom: 1px solid var(--menu-highlight);
     font-size: 0.9rem;
 }
 
@@ -20,9 +24,9 @@
     width: 1.8rem;
     height: 1.8rem;
     border-radius: 50%;
-    border: 1px solid #555;
+    border: 1px solid color-mix(in srgb, var(--menu-text) 30%, transparent);
     background: none;
-    color: #ccc;
+    color: color-mix(in srgb, var(--menu-text) 80%, transparent);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -32,8 +36,8 @@
 }
 
 .profile-btn:hover {
-    border-color: #ccc;
-    color: white;
+    border-color: color-mix(in srgb, var(--menu-text) 80%, transparent);
+    color: var(--menu-text);
 }
 
 .category-list {
@@ -46,7 +50,13 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.4rem 0;
+    /* Marges négatives : le fond (couleur ou image du thème) déborde un peu
+       pour former une tuile, sans décaler le texte. */
+    margin: 0 -0.5rem 2px;
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    color: var(--category-text);
+    background-color: var(--category-bg);
     cursor: pointer;
     user-select: none;
 }
@@ -71,10 +81,14 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.4rem;
+    margin: 0 -0.5rem 2px;
+    padding: 0 0.5rem;
+    border-radius: 6px;
+    background-color: var(--subcategory-bg);
 }
 
 .subcategory-list a {
-    color: #ccc;
+    color: var(--subcategory-text);
     text-decoration: none;
     font-size: 0.9rem;
     display: block;
@@ -82,7 +96,7 @@
 }
 
 .subcategory-list a:hover {
-    color: white;
+    color: var(--menu-text);
 }
 
 .inline-add-form {
@@ -101,8 +115,8 @@
 }
 
 .inline-add-btn {
-    background: #3a3a55;
-    color: white;
+    background: var(--menu-highlight);
+    color: var(--menu-text);
     border: none;
     border-radius: 4px;
     padding: 0.2rem 0.6rem;
@@ -113,27 +127,27 @@
     padding: 0.45rem 0.6rem;
     margin-bottom: 0.8rem;
     border-radius: 6px;
-    color: #ddd;
+    color: color-mix(in srgb, var(--menu-text) 80%, transparent);
     text-decoration: none;
 }
 
 .sidebar-home:hover {
-    background: #2c2c44;
-    color: white;
+    background: color-mix(in srgb, var(--menu-highlight) 50%, var(--menu-bg));
+    color: var(--menu-text);
 }
 
 .sidebar-home.active {
-    background: #3a3a5c;
-    color: white;
+    background: var(--menu-highlight);
+    color: var(--menu-text);
     font-weight: bold;
 }
 
 /* Bouton de configuration d'une catégorie / sous-catégorie. */
 .settings-btn {
     background: none;
-    border: 1px solid #555;
+    border: 1px solid color-mix(in srgb, var(--menu-text) 30%, transparent);
     border-radius: 4px;
-    color: #aaa;
+    color: color-mix(in srgb, var(--menu-text) 80%, transparent);
     cursor: pointer;
     font-size: 0.8rem;
     line-height: 1.2;
@@ -141,8 +155,8 @@
 }
 
 .settings-btn:hover {
-    border-color: #ccc;
-    color: white;
+    border-color: color-mix(in srgb, var(--menu-text) 80%, transparent);
+    color: var(--menu-text);
 }
 
 /* Modale de configuration (rendue dans la sidebar mais sur fond blanc). */
@@ -157,14 +171,14 @@
 
 .category-settings .translation-list legend {
     font-size: 0.85rem;
-    color: #444;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
     padding: 0 0.3rem;
 }
 
 .category-settings .translation-hint {
     margin: 0;
     font-size: 0.8rem;
-    color: #777;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
 }
 
 .category-settings .translation-row {
@@ -176,7 +190,7 @@
 .category-settings .translation-language {
     width: 5.5rem;
     font-size: 0.85rem;
-    color: #444;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
 }
 
 .category-settings .translation-row input {
@@ -187,29 +201,29 @@
 .category-settings .translation-remove {
     background: none;
     border: none;
-    color: #999;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
     cursor: pointer;
     font-size: 0.9rem;
     padding: 0 0.3rem;
 }
 
 .category-settings .translation-remove:hover {
-    color: #c0392b;
+    color: var(--danger);
 }
 
 .category-settings .translation-add {
     background: none;
     border: 1px dashed #bbb;
     border-radius: 4px;
-    color: #555;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
     cursor: pointer;
     font-size: 0.85rem;
     padding: 0.3rem 0.7rem;
 }
 
 .category-settings .translation-add:hover {
-    border-color: #1e1e2f;
-    color: #1e1e2f;
+    border-color: var(--primary);
+    color: var(--primary);
 }
 
 .category-settings-delete {
@@ -217,7 +231,7 @@
 }
 
 .category-settings .delete-btn {
-    background: #c0392b;
+    background: var(--danger);
     color: white;
     opacity: 1;
     border-radius: 4px;
@@ -225,5 +239,5 @@
 }
 
 .category-settings .delete-btn:hover {
-    background: #e74c3c;
+    filter: brightness(1.15);
 }

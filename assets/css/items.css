@@ -54,7 +54,7 @@
 .item-card--add {
     border: 2px dashed #aaa;
     background: none;
-    color: #888;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -196,7 +196,7 @@
     height: 1.6rem;
     border-radius: 50%;
     border: none;
-    background: #1e1e2f;
+    background: var(--primary);
     color: white;
     cursor: pointer;
     font-size: 1rem;
@@ -216,7 +216,7 @@
 .item-detail-description {
     max-height: 120px;
     overflow: hidden;
-    color: #333;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
     line-height: 1.5;
     margin-left: 5px;
     margin-right: 5px;
@@ -249,13 +249,13 @@
 }
 
 .item-detail-description a {
-    color: #1e1e2f;
+    color: var(--primary);
 }
 
 .description-toggle-btn {
     background: none;
     border: none;
-    color: #1e1e2f;
+    color: var(--primary);
     text-decoration: underline;
     cursor: pointer;
     font-size: 0.85rem;
@@ -264,7 +264,7 @@
 }
 
 .links-placeholder {
-    color: #888;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
     font-style: italic;
     font-size: 0.9rem;
     margin: 0;
@@ -283,7 +283,7 @@
     flex-direction: column;
     gap: 0.3rem;
     font-size: 0.8rem;
-    color: #555;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
 }
 
 .toolbar-control select {
@@ -304,11 +304,11 @@
     align-items: center;
     gap: 0.3rem;
     font-size: 0.85rem;
-    color: #333;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
 }
 
 .toolbar-hint {
-    color: #999;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
     font-size: 0.8rem;
     font-style: italic;
 }
@@ -345,7 +345,7 @@
 
 .field-label {
     font-size: 0.85rem;
-    color: #555;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
     min-width: 60px;
 }
 
@@ -368,7 +368,7 @@
     padding: 0.4rem 0.9rem;
     border: 1px solid #ccc;
     border-radius: 4px;
-    background: white;
+    background: var(--surface);
     cursor: pointer;
 }
 
@@ -379,13 +379,13 @@
 
 .pagination-info {
     font-size: 0.85rem;
-    color: #555;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
 }
 
 .infinite-scroll-sentinel {
     text-align: center;
     padding: 1.5rem;
-    color: #888;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
     font-size: 0.9rem;
 }
 
@@ -485,7 +485,7 @@
     border: none;
     padding: 0.4rem 0.8rem;
     font-size: 0.85rem;
-    color: #666;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
     cursor: pointer;
     border-radius: 4px 4px 0 0;
 }
@@ -493,7 +493,7 @@
     background: #f0f0f5;
 }
 .item-tab--active {
-    color: #1e1e2f;
+    color: var(--primary);
     font-weight: 600;
     background: #eef0f5;
 }
@@ -506,13 +506,13 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: #999;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
     font-size: 0.8rem;
     padding: 0 0.3rem;
     line-height: 1;
 }
 .item-tab-remove:hover {
-    color: #c0392b;
+    color: var(--danger);
 }
 .item-tabs-content {
     min-height: 60px;

@@ -6200,6 +6200,7 @@ name = "where_i_left_off"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "base64 0.22.1",
  "dioxus",
  "dirs 7.0.0",
  "percent-encoding",

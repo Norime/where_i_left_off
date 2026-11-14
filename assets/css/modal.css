@@ -9,7 +9,7 @@
 }
 
 .modal-box {
-    background: white;
+    background: var(--surface);
     border-radius: 8px;
     padding: 1.5rem;
     width: 600px;
@@ -34,7 +34,7 @@
     flex-direction: column;
     gap: 0.3rem;
     font-size: 0.85rem;
-    color: #444;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
 }
 
 .new-item-modal-form input {
@@ -57,7 +57,7 @@
 }
 
 .primary-btn {
-    background: #1e1e2f;
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 4px;
@@ -66,7 +66,7 @@
 }
 
 .danger-btn {
-    background: #c0392b;
+    background: var(--danger);
     color: white;
     border: none;
     border-radius: 4px;
@@ -101,21 +101,21 @@
     border-radius: 999px;
     padding: 0.2rem 0.3rem 0.2rem 0.7rem;
     font-size: 0.8rem;
-    color: #333;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
 }
 
 .placement-chip-remove {
     background: none;
     border: none;
     cursor: pointer;
-    color: #888;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
     font-size: 0.9rem;
     line-height: 1;
     padding: 0 0.3rem;
 }
 
 .placement-chip-remove:hover {
-    color: #c0392b;
+    color: var(--danger);
 }
 
 .placement-picker-form {
@@ -129,7 +129,7 @@
     flex-direction: column;
     gap: 0.3rem;
     font-size: 0.85rem;
-    color: #444;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
 }
 
 .placement-picker-form select {
@@ -151,7 +151,7 @@
     flex-direction: column;
     gap: 0.3rem;
     font-size: 0.85rem;
-    color: #444;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
 }
 
 .item-form-field input,
@@ -174,12 +174,12 @@
 }
 
 .modal-box {
-    background: white;
+    background: var(--surface);
     border-radius: 8px;
     padding: 1.5rem;
     width: 600px;
     max-width: 90vw;
-    color: #222;
+    color: var(--text);
     /* Une modale plus haute que l'écran défile à l'intérieur au lieu de
        déborder (le fond la centre, donc elle dépasserait en haut ET en bas). */
     max-height: 90vh;
@@ -189,5 +189,5 @@
 
 .modal-box h2 {
     margin-top: 0;
-    color: #222;
+    color: var(--text);
 }

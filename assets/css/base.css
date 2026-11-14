@@ -1,18 +1,71 @@
+/* Couleurs par défaut du thème. Une fois connecté, `App` ajoute une règle
+   `:root` construite depuis `Theme` (src/models/theme.rs) qui les remplace. */
+:root {
+    --menu-bg: #1e1e2f;
+    --menu-highlight: #3a3a5c;
+    --menu-text: #ffffff;
+    --category-text: var(--menu-text);
+    --category-bg: transparent;
+    --subcategory-text: color-mix(in srgb, var(--menu-text) 80%, transparent);
+    --subcategory-bg: transparent;
+    --primary: #1e1e2f;
+    --accent: #2a8f88;
+    --success: #2e8b57;
+    --danger: #c0392b;
+    --page-bg: #ffffff;
+    --surface: #ffffff;
+    --text: #222222;
+}
+
 body {
     margin: 0;
     font-family: sans-serif;
+    background: var(--page-bg);
+    color: var(--text);
 }
 
+/* Menu et contenu sont deux zones séparées, de la hauteur de la fenêtre,
+   qui défilent chacune de leur côté : le menu ne s'allonge pas avec la
+   page, et son fond reste fixe pendant le défilement du contenu. */
 .app-shell {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
 }
 
 .main-content {
     flex: 1;
+    min-width: 0;
+    overflow-y: auto;
 }
 
 .empty-state {
-    color: #888;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
     font-style: italic;
+}
+/* Message d'information global (ex: thème introuvable). */
+.app-notice {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    max-width: 360px;
+    padding: 0.7rem 0.9rem;
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    font-size: 0.9rem;
+}
+
+.app-notice button {
+    background: none;
+    border: none;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
+    cursor: pointer;
+    font-size: 0.9rem;
 }

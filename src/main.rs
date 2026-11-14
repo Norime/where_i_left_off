@@ -1,3 +1,5 @@
+use base64::engine::general_purpose::STANDARD as BASE64;
+use base64::Engine;
 use dioxus::prelude::*;
 
 mod auth;
@@ -16,6 +18,7 @@ mod source_import;
 mod state;
 mod update_check;
 
+use models::{detect_image_type, ThemeImageSlot};
 use pages::AuthScreen;
 use routes::Route;
 
@@ -38,13 +41,76 @@ fn main() {
 /// affiche soit l'écran de connexion, soit l'application complète.
 #[component]
 fn App() -> Element {
-    let user_store = use_context_provider(|| Signal::new(persistence::load_users()));
+    let mut user_store = use_context_provider(|| Signal::new(persistence::load_users()));
     let session = use_context_provider(|| Signal::new(None::<usize>));
     i18n::use_language_provider(user_store, session);
 
     use_effect(move || {
         persistence::save_users(&user_store.read());
     });
+
+    // Thème choisi qui n'existe plus (prédéfini retiré de l'application,
+    // thème perso absent du fichier) : retour au thème par défaut, et
+    // message affiché par `ThemeNoticeBanner`.
+    let ThemeNoticeSignal(mut theme_notice) = use_context_provider(|| ThemeNoticeSignal(Signal::new(None)));
+    use_effect(move || {
+        let Some(user_id) = session() else { return };
+        let missing = user_store.read().users.iter().any(|u| u.id == user_id && u.theme_missing());
+        if missing && user_store.write().reset_missing_theme(user_id) {
+            theme_notice.set(Some(ThemeNotice::ThemeMissing));
+        }
+    });
+
+    // À la connexion : supprime les images de thème que plus aucun thème
+    // du compte n'utilise (thème supprimé, image remplacée).
+    use_effect(move || {
+        let Some(user_id) = session() else { return };
+        let used = user_store.peek().used_media(user_id);
+        persistence::remove_unused_media(user_id, &used);
+    });
+
+    // Couleurs, règles des images et effet verre du compte connecté :
+    // remplacent les valeurs par défaut de `base.css`. L'écran de connexion
+    // garde l'apparence d'origine.
+    let theme_css = session()
+        .and_then(|id| user_store.read().users.iter().find(|u| u.id == id).map(|u| u.effective_theme().css()))
+        .unwrap_or_default();
+
+    // Contenu des images, dans sa propre feuille de style : les deux memos
+    // évitent de relire et renvoyer les fichiers à chaque changement de
+    // couleur ou de voile, seulement quand la liste des fichiers change.
+    let image_files = use_memo(move || {
+        let user_id = session()?;
+        let store = user_store.read();
+        let user = store.users.iter().find(|u| u.id == user_id)?;
+        let files: Vec<(ThemeImageSlot, String)> =
+            user.effective_theme().images().into_iter().map(|(slot, image)| (slot, image.file.clone())).collect();
+        Some((user_id, files))
+    });
+    let image_css = use_memo(move || {
+        let Some((user_id, files)) = image_files() else { return (String::new(), 0) };
+        let mut declarations = String::new();
+        let mut missing = 0;
+        for (slot, file) in files {
+            let data = persistence::load_media(user_id, &file)
+                .and_then(|bytes| detect_image_type(&bytes).map(|(mime, _)| (mime, BASE64.encode(&bytes))));
+            match data {
+                Some((mime, encoded)) => {
+                    declarations.push_str(&format!("{}: url(\"data:{mime};base64,{encoded}\"); ", slot.css_variable()))
+                }
+                None => missing += 1,
+            }
+        }
+        (format!(":root {{ {declarations}}}"), missing)
+    });
+    // Image du thème introuvable (fichier supprimé du dossier) : la zone
+    // garde sa couleur, et l'utilisateur est prévenu.
+    use_effect(move || {
+        if image_css().1 > 0 {
+            theme_notice.set(Some(ThemeNotice::ImageMissing));
+        }
+    });
+    let image_data_css = image_css().0;
 
     let content = match session() {
         Some(user_id) => rsx! {
@@ -65,7 +131,46 @@ fn App() -> Element {
         style { {SOURCES_CSS} }
         style { {LANGUAGE_CSS} }
         style { {HOME_CSS} }
+        style { {image_data_css} }
+        style { {theme_css} }
         {content}
+        ThemeNoticeBanner {}
+    }
+}
+
+/// Problème de thème à signaler à l'utilisateur.
+#[derive(Clone, Copy, PartialEq)]
+enum ThemeNotice {
+    /// Le thème choisi n'existait plus : remplacé par celui par défaut.
+    ThemeMissing,
+    /// Une image du thème est introuvable : la zone garde sa couleur.
+    ImageMissing,
+}
+
+/// Message de thème en cours d'affichage (`None` : aucun).
+#[derive(Clone, Copy)]
+struct ThemeNoticeSignal(Signal<Option<ThemeNotice>>);
+
+/// Message en bas à droite, sur toutes les pages.
+#[component]
+fn ThemeNoticeBanner() -> Element {
+    let i18n_text = i18n::use_texts();
+    let ThemeNoticeSignal(mut theme_notice) = use_context::<ThemeNoticeSignal>();
+    let text = match theme_notice() {
+        None => return rsx! {},
+        Some(ThemeNotice::ThemeMissing) => i18n_text.theme_missing_notice,
+        Some(ThemeNotice::ImageMissing) => i18n_text.theme_image_missing_notice,
+    };
+    rsx! {
+        div { class: "app-notice",
+            span { "{text}" }
+            button {
+                r#type: "button",
+                title: "{i18n_text.close}",
+                onclick: move |_| theme_notice.set(None),
+                "✕"
+            }
+        }
     }
 }
 

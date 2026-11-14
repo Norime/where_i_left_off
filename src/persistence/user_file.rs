@@ -16,10 +16,12 @@ fn users_file_path() -> PathBuf {
 pub fn load_users() -> UserStore {
     let path = users_file_path();
 
-    match fs::read_to_string(&path) {
+    let mut store: UserStore = match fs::read_to_string(&path) {
         Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
         Err(_) => UserStore::default(),
-    }
+    };
+    store.migrate();
+    store
 }
 
 /// Sauvegarde la liste des comptes sur le disque.

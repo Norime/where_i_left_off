@@ -7,7 +7,7 @@
 }
 
 .auth-box {
-    background: white;
+    background: var(--surface);
     padding: 2rem;
     border-radius: 8px;
     width: 320px;
@@ -15,12 +15,12 @@
 }
 
 .auth-hint {
-    color: #888;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
     font-size: 0.9rem;
 }
 
 .auth-error {
-    color: #c0392b;
+    color: var(--danger);
     font-size: 0.85rem;
 }
 
@@ -52,7 +52,7 @@
 }
 
 .account-avatar:hover {
-    border-color: #1e1e2f;
+    border-color: var(--primary);
 }
 
 .account-avatar--add {
@@ -61,7 +61,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #888;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
 }
 
 .account-avatar--add .add-icon {
@@ -71,7 +71,7 @@
 .account-name {
     margin-top: 0.5rem;
     font-size: 0.85rem;
-    color: #333;
+    color: color-mix(in srgb, var(--text) 85%, transparent);
     cursor: pointer;
     word-break: break-word;
 }

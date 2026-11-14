@@ -18,6 +18,8 @@ pub enum Route {
         CategoryView { category_id: usize, subcategory_id: usize },
         #[route("/item/:id?:category_id&:subcategory_id")]
         ItemDetail { id: usize, category_id: usize, subcategory_id: usize },
-        #[route("/profile")]
-        Profile {},
+    #[end_layout]
+    // Réglages du compte en plein écran, avec leur propre menu à gauche.
+    #[route("/profile")]
+    Profile {},
 }

@@ -10,6 +10,7 @@ use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::net::SearchError;
+use crate::models::{ImageFit, ThemeColor, ThemeImageSlot, ThemePreset};
 use crate::state::UserStore;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -141,8 +142,84 @@ pub struct Texts {
     pub wrong_password: &'static str,
     pub sign_in: &'static str,
     // --- Profil ---
-    pub profile_title: &'static str,
-    pub no_user_logged_in: &'static str,
+    pub account: &'static str,
+    pub account_info: &'static str,
+    pub appearance: &'static str,
+    pub theme: &'static str,
+    pub icon: &'static str,
+    pub theme_hint: &'static str,
+    pub icon_hint: &'static str,
+    pub remove_avatar: &'static str,
+    pub theme_menu_background: &'static str,
+    pub theme_menu_highlight: &'static str,
+    pub theme_menu_text: &'static str,
+    pub theme_category_text: &'static str,
+    pub theme_category_background: &'static str,
+    pub theme_subcategory_text: &'static str,
+    pub theme_subcategory_background: &'static str,
+    pub theme_primary: &'static str,
+    pub theme_accent: &'static str,
+    pub theme_success: &'static str,
+    pub theme_danger: &'static str,
+    pub theme_page_background: &'static str,
+    pub theme_surface: &'static str,
+    pub theme_text: &'static str,
+    pub theme_presets: &'static str,
+    pub theme_preset_default: &'static str,
+    pub theme_preset_light: &'static str,
+    pub theme_preset_forest: &'static str,
+    pub theme_preset_dusk: &'static str,
+    pub export_theme: &'static str,
+    pub export_custom_only: &'static str,
+    pub import_theme: &'static str,
+    pub theme_exported: fn(&str) -> String,
+    pub theme_export_failed: fn(&str) -> String,
+    pub theme_import_ignored: fn(&str) -> String,
+    pub theme_import_invalid: &'static str,
+    pub theme_imported: fn(&str, usize, usize) -> String,
+    pub custom_themes: &'static str,
+    pub no_custom_themes: &'static str,
+    pub create_theme: &'static str,
+    pub theme_name: &'static str,
+    pub new_theme_default_name: &'static str,
+    pub theme_copy_name: fn(&str) -> String,
+    pub edit_theme: fn(&str) -> String,
+    pub delete_theme: &'static str,
+    pub preset_not_editable: &'static str,
+    pub imported_theme_default: &'static str,
+    pub theme_missing_notice: &'static str,
+    pub theme_image_missing_notice: &'static str,
+    pub opacity: &'static str,
+    pub colors_title: &'static str,
+    pub colors_hint: &'static str,
+    pub images_title: &'static str,
+    pub images_hint: &'static str,
+    pub image_slot_page_background: &'static str,
+    pub image_slot_menu_background: &'static str,
+    pub image_slot_category: &'static str,
+    pub image_slot_subcategory: &'static str,
+    pub choose_image: &'static str,
+    pub change_image: &'static str,
+    pub remove_image: &'static str,
+    pub image_fit: &'static str,
+    pub image_fit_cover: &'static str,
+    pub image_fit_contain: &'static str,
+    pub image_fit_repeat: &'static str,
+    pub image_opacity: &'static str,
+    pub image_unsupported: &'static str,
+    pub image_too_large: fn(&str) -> String,
+    pub image_save_failed: fn(&str) -> String,
+    pub glass_title: &'static str,
+    pub glass_hint: &'static str,
+    pub glass_needs_image: &'static str,
+    pub glass_needs_transparency: &'static str,
+    pub export_title: fn(&str) -> String,
+    pub export_include_images: fn(&str) -> String,
+    pub export_images_hint: &'static str,
+    pub export_no_images: &'static str,
+    pub theme_import_images: fn(usize) -> String,
+    pub theme_import_images_ignored: fn(usize) -> String,
+    pub file_size: fn(u64) -> String,
     pub account_not_found: &'static str,
     pub has_password_hint: &'static str,
     pub no_password_hint: &'static str,
@@ -333,6 +410,55 @@ pub struct Texts {
 }
 
 impl Texts {
+    /// Nom d'un thème prédéfini dans la langue courante.
+    pub fn theme_preset_label(&self, preset: ThemePreset) -> &'static str {
+        match preset {
+            ThemePreset::Default => self.theme_preset_default,
+            ThemePreset::Light => self.theme_preset_light,
+            ThemePreset::Forest => self.theme_preset_forest,
+            ThemePreset::Dusk => self.theme_preset_dusk,
+        }
+    }
+
+    /// Nom d'une zone d'image du thème dans la langue courante.
+    pub fn image_slot_label(&self, slot: ThemeImageSlot) -> &'static str {
+        match slot {
+            ThemeImageSlot::PageBackground => self.image_slot_page_background,
+            ThemeImageSlot::MenuBackground => self.image_slot_menu_background,
+            ThemeImageSlot::Category => self.image_slot_category,
+            ThemeImageSlot::Subcategory => self.image_slot_subcategory,
+        }
+    }
+
+    /// Nom d'un mode d'affichage d'image dans la langue courante.
+    pub fn image_fit_label(&self, fit: ImageFit) -> &'static str {
+        match fit {
+            ImageFit::Cover => self.image_fit_cover,
+            ImageFit::Contain => self.image_fit_contain,
+            ImageFit::Repeat => self.image_fit_repeat,
+        }
+    }
+
+    /// Nom d'une couleur du thème dans la langue courante.
+    pub fn theme_color_label(&self, color: ThemeColor) -> &'static str {
+        match color {
+            ThemeColor::MenuBackground => self.theme_menu_background,
+            ThemeColor::MenuHighlight => self.theme_menu_highlight,
+            ThemeColor::MenuText => self.theme_menu_text,
+            ThemeColor::CategoryText => self.theme_category_text,
+            ThemeColor::CategoryBackground => self.theme_category_background,
+            ThemeColor::SubcategoryText => self.theme_subcategory_text,
+            ThemeColor::SubcategoryBackground => self.theme_subcategory_background,
+            ThemeColor::Primary => self.theme_primary,
+            ThemeColor::Accent => self.theme_accent,
+            ThemeColor::Success => self.theme_success,
+            ThemeColor::Danger => self.theme_danger,
+            ThemeColor::PageBackground => self.theme_page_background,
+            ThemeColor::Surface => self.theme_surface,
+            ThemeColor::Text => self.theme_text,
+        }
+    }
+
     /// Message d'erreur de recherche API dans la langue courante.
     pub fn search_error(&self, error: &SearchError) -> String {
         match error {
