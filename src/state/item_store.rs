@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::source_import;
-use crate::models::{ImportedFrom, Item, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind, ItemOrientation, ItemPlacement, ItemStatus, WorkStatus, ItemTab};
+use crate::models::{ImportedFrom, Item, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind, ItemOrientation, ItemPlacement, ItemStatus, ProgressMode, WorkStatus, ItemTab};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct ItemStore {
@@ -61,24 +61,13 @@ impl ItemStore {
         item.placements.iter_mut().find(|p| p.category_id == category_id && p.subcategory_id == subcategory_id)
     }
 
-    /// Recalcule automatiquement le statut d'un placement à partir de sa
-    /// progression : Nouveau si rien n'est fait, En cours si c'est partiel,
-    /// Terminé si tout est fait. Ne touche à rien si le placement n'a
-    /// aucun nœud de progression cochable (le statut reste alors manuel,
-    /// piloté par `set_placement_status`).
+    /// Recalcule le statut d'un placement à partir de sa progression (voir
+    /// `ItemPlacement::refresh_status`). Ne touche à rien en fiche simple
+    /// ou sans élément cochable : le statut reste alors manuel, piloté par
+    /// `set_placement_status`.
     fn recompute_placement_status(&mut self, item_id: usize, category_id: usize, subcategory_id: usize) {
         if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
-            let total = placement.progress.iter().filter(|n| n.kind != ProgressNodeKind::Group).count();
-            if total > 0 {
-                let done = placement.progress.iter().filter(|n| n.kind != ProgressNodeKind::Group && n.is_done).count();
-                placement.status = if done == 0 {
-                    ItemStatus::New
-                } else if done < total {
-                    ItemStatus::InProgress
-                } else {
-                    ItemStatus::Done
-                };
-            }
+            placement.refresh_status();
         }
     }
 
@@ -107,16 +96,7 @@ impl ItemStore {
             let already_there = item.placements.iter()
                 .any(|p| p.category_id == category_id && p.subcategory_id == subcategory_id);
             if !already_there {
-                item.placements.push(ItemPlacement {
-                    category_id,
-                    subcategory_id,
-                    status: ItemStatus::New,
-                    type_ids: Vec::new(),
-                    progress: Vec::new(),
-                    work_status: WorkStatus::default(),
-                    tabs: Vec::new(),
-                    imported_from: None,
-                });
+                item.placements.push(ItemPlacement::new(category_id, subcategory_id));
             }
         }
     }
@@ -125,6 +105,17 @@ impl ItemStore {
     pub fn set_placement_status(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, status: ItemStatus) {
         if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
             placement.status = status;
+        }
+    }
+
+    /// Passe un placement en liste ou en fiche simple. Seulement quand il
+    /// n'a encore aucune progression : une liste existante n'est jamais
+    /// masquée ni perdue.
+    pub fn set_progress_mode(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, mode: ProgressMode) {
+        if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
+            if placement.progress.is_empty() {
+                placement.progress_mode = mode;
+            }
         }
     }
 

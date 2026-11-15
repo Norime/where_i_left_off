@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use crate::components::{AddPlacementModal, DeleteButton, EditItemModal, TypePickerModal, ItemTabs};
 use crate::i18n::{use_texts, Language};
 use crate::markdown;
-use crate::models::{ProgressNodeKind, WorkStatus};
+use crate::models::{ItemStatus, WorkStatus};
 use crate::state::{CategoryStore, ItemStore, TypeStore};
 
 /// Affiche le détail d'un élément, avec un panneau "Catégories" dans la
@@ -81,15 +81,25 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                 .map(|(c, s)| format!("{c}:{s}"))
                 .unwrap_or_default();
 
-            let current_status_key: &'static str = effective_placement
-                .and_then(|(cat_id, sub_id)| placements.iter().find(|(c, s, _, _)| *c == cat_id && *s == sub_id))
-                .map(|(_, _, _, key)| *key)
-                .unwrap_or("new");
-
-            let current_status_label = match current_status_key {
-                "in_progress" => i18n_text.status_in_progress,
-                "done" => i18n_text.status_done,
-                _ => i18n_text.status_new,
+            // Statut du placement, et celui que donne sa progression (`None`
+            // en fiche simple ou sans élément à cocher : tout se choisit
+            // alors à la main).
+            let (current_status, computed_status) = effective_placement
+                .and_then(|(cat_id, sub_id)| item.placements.iter().find(|p| p.category_id == cat_id && p.subcategory_id == sub_id))
+                .map(|p| (p.status, p.computed_status()))
+                .unwrap_or((ItemStatus::New, None));
+            // Avec une progression, les statuts calculés sont regroupés en
+            // un seul choix « Selon la progression ».
+            let status_choices: Vec<(&'static str, String)> = match computed_status {
+                Some(computed) => std::iter::once(("auto", (i18n_text.status_auto)(i18n_text.status_name(computed))))
+                    .chain(ItemStatus::MANUAL.into_iter().map(|s| (s.value_key(), i18n_text.status_name(s).to_string())))
+                    .collect(),
+                None => ItemStatus::ALL.into_iter().map(|s| (s.value_key(), i18n_text.status_name(s).to_string())).collect(),
+            };
+            let current_status_choice = if computed_status.is_some() && !current_status.is_manual() {
+                "auto"
+            } else {
+                current_status.value_key()
             };
             // Statut de L'ŒUVRE (en cours / terminé / non fini) : propre à
             // CE placement, pas à l'item entier — un anime peut être
@@ -117,14 +127,6 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                 current_type_names.join(", ")
             };
 
-            // Le statut se calcule tout seul dès qu'il y a de la
-            // progression à suivre (voir `recompute_placement_status`
-            // côté store) ; il est seulement affiché ici, sans possibilité
-            // de le modifier à la main.
-            let has_progress: bool = effective_placement
-                .and_then(|(cat_id, sub_id)| item.placements.iter().find(|p| p.category_id == cat_id && p.subcategory_id == sub_id))
-                .map(|p| p.progress.iter().any(|n| n.kind != ProgressNodeKind::Group))
-                .unwrap_or(false);
 
             rsx! {
                 div { class: "item-detail",
@@ -244,12 +246,27 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                                             option { value: "unfinished", "{i18n_text.work_status_unfinished}" }
                                         }
                                     }
-                                    div { class: "field-row",
+                                    label { class: "field-row",
                                         span { class: "field-label", "{i18n_text.status_label}" }
-                                        span { class: "status-display", "{current_status_label}" }
-                                        if has_progress {
-                                            span { class: "progress-usage-hint",
-                                                "{i18n_text.computed_from_progress}"
+                                        select {
+                                            value: "{current_status_choice}",
+                                            title: if computed_status.is_some() { "{i18n_text.status_manual_hint}" },
+                                            onchange: move |event| {
+                                                let status = match event.value().as_str() {
+                                                    "auto" => computed_status,
+                                                    key => ItemStatus::from_key(key),
+                                                };
+                                                if let Some(status) = status {
+                                                    item_store.write().set_placement_status(id, cat_id, sub_id, status);
+                                                }
+                                            },
+                                            for (key , label) in status_choices {
+                                                option {
+                                                    key: "{key}",
+                                                    value: "{key}",
+                                                    selected: key == current_status_choice,
+                                                    "{label}"
+                                                }
                                             }
                                         }
                                     }

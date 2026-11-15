@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 
 use crate::components::sources::SourceCatalogPanel;
 use crate::i18n::{use_texts, Language};
-use crate::models::{Category, Item, ItemPlacement, ProgressNodeKind};
+use crate::models::{Category, Item, ItemPlacement, ItemStatus};
 use crate::routes::Route;
 use crate::source_import;
 use crate::state::{CategoryStore, ItemStore, SourceStore};
@@ -22,7 +22,7 @@ struct NewRelease {
     new_titles: Vec<String>,
 }
 
-/// Une œuvre (un placement précis) commencée mais pas terminée.
+/// Une œuvre (un placement précis) en cours ou en pause.
 #[derive(Clone, PartialEq)]
 struct ContinueEntry {
     item_id: usize,
@@ -31,9 +31,11 @@ struct ContinueEntry {
     title: String,
     subcategory_name: String,
     image_url: Option<String>,
-    done: usize,
-    total: usize,
-    next_title: String,
+    /// Éléments cochés / total, si le placement a une liste.
+    progress: Option<(usize, usize)>,
+    /// Premier élément pas encore coché.
+    next_title: Option<String>,
+    on_hold: bool,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -116,23 +118,28 @@ pub fn Home() -> Element {
         })
     });
 
-    // Commencées (au moins un élément coché) mais pas finies.
-    let continue_sections = group_by_category(&category_store.read().categories, &item_store.read().items, language, |item, p, subcategory_name| {
-        let leaves: Vec<_> = p.progress.iter().filter(|n| n.kind != ProgressNodeKind::Group).collect();
+    // En cours, puis en pause (chaque catégorie les range dans cet ordre).
+    let mut continue_sections = group_by_category(&category_store.read().categories, &item_store.read().items, language, |item, p, subcategory_name| {
+        if !matches!(p.status, ItemStatus::InProgress | ItemStatus::OnHold) {
+            return None;
+        }
+        let leaves: Vec<_> = p.leaves().collect();
         let done = leaves.iter().filter(|n| n.is_done).count();
-        let next = leaves.iter().find(|n| !n.is_done)?;
-        (done > 0).then(|| ContinueEntry {
+        Some(ContinueEntry {
             item_id: item.id,
             category_id: p.category_id,
             subcategory_id: p.subcategory_id,
             title: item.title.clone(),
             subcategory_name,
             image_url: item.image_url.clone(),
-            done,
-            total: leaves.len(),
-            next_title: next.title.clone(),
+            progress: (!leaves.is_empty()).then_some((done, leaves.len())),
+            next_title: leaves.iter().find(|n| !n.is_done).map(|n| n.title.clone()),
+            on_hold: p.status == ItemStatus::OnHold,
         })
     });
+    for (_, _, entries) in continue_sections.iter_mut() {
+        entries.sort_by_key(|entry| entry.on_hold);
+    }
 
     let progress_percent = if state.total > 0 { state.done * 100 / state.total } else { 0 };
 
@@ -286,14 +293,13 @@ fn NewReleaseCard(release: NewRelease) -> Element {
 #[component]
 fn ContinueCard(entry: ContinueEntry) -> Element {
     let i18n_text = use_texts();
-    let ContinueEntry { item_id, category_id, subcategory_id, done, total, .. } = entry;
+    let ContinueEntry { item_id, category_id, subcategory_id, progress, on_hold, .. } = entry;
 
     let image_style = entry
         .image_url
         .as_ref()
         .map(|url| format!("background-image: url('{url}');"))
         .unwrap_or_default();
-    let percent = done * 100 / total;
 
     rsx! {
         div { class: "home-release",
@@ -304,13 +310,20 @@ fn ContinueCard(entry: ContinueEntry) -> Element {
                 div { class: "home-release-body",
                     span { class: "home-release-subcategory", "{entry.subcategory_name}" }
                     span { class: "home-release-title", "{entry.title}" }
-                    div { class: "home-continue-progress",
-                        div { class: "home-check-bar home-continue-bar",
-                            div { class: "home-check-bar-fill", width: "{percent}%" }
-                        }
-                        span { class: "home-continue-count", {(i18n_text.progress_count)(done, total)} }
+                    if on_hold {
+                        span { class: "home-status-chip", "{i18n_text.status_on_hold}" }
                     }
-                    span { class: "home-release-preview", {(i18n_text.next_up)(&entry.next_title)} }
+                    if let Some((done, total)) = progress {
+                        div { class: "home-continue-progress",
+                            div { class: "home-check-bar home-continue-bar",
+                                div { class: "home-check-bar-fill", width: "{done * 100 / total}%" }
+                            }
+                            span { class: "home-continue-count", {(i18n_text.progress_count)(done, total)} }
+                        }
+                    }
+                    if let Some(next_title) = &entry.next_title {
+                        span { class: "home-release-preview", {(i18n_text.next_up)(next_title)} }
+                    }
                 }
             }
         }

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::net::SearchError;
 use crate::persistence::MediaError;
-use crate::models::{ImageFit, MenuPosition, ThemeColor, ThemeImageSlot, ThemePreset};
+use crate::models::{ImageFit, ItemStatus, MenuPosition, ThemeColor, ThemeImageSlot, ThemePreset};
 use crate::state::UserStore;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -124,11 +124,21 @@ pub struct Texts {
     pub status_new: &'static str,
     pub status_in_progress: &'static str,
     pub status_done: &'static str,
+    pub status_planned: &'static str,
+    pub status_on_hold: &'static str,
+    pub status_dropped: &'static str,
+    pub status_auto: fn(&str) -> String,
+    pub status_manual_hint: &'static str,
+    pub progress_single_hint: &'static str,
+    pub use_single_mode: &'static str,
+    pub use_list_mode: &'static str,
+    pub mark_done: &'static str,
+    pub marked_done: &'static str,
+    pub unmark_done: &'static str,
     pub work_status_label: &'static str,
     pub work_status_in_progress: &'static str,
     pub work_status_completed: &'static str,
     pub work_status_unfinished: &'static str,
-    pub computed_from_progress: &'static str,
     // --- Comptes / connexion ---
     pub no_account_hint: &'static str,
     pub new_account: &'static str,
@@ -437,6 +447,17 @@ impl Texts {
             ThemePreset::Light => self.theme_preset_light,
             ThemePreset::Forest => self.theme_preset_forest,
             ThemePreset::Dusk => self.theme_preset_dusk,
+        }
+    }
+
+    pub fn status_name(&self, status: ItemStatus) -> &'static str {
+        match status {
+            ItemStatus::New => self.status_new,
+            ItemStatus::InProgress => self.status_in_progress,
+            ItemStatus::Done => self.status_done,
+            ItemStatus::Planned => self.status_planned,
+            ItemStatus::OnHold => self.status_on_hold,
+            ItemStatus::Dropped => self.status_dropped,
         }
     }
 

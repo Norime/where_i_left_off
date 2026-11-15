@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use crate::components::{DeleteButton, FetchedItemData, ItemSourceSearch, Modal};
 use crate::i18n::{use_texts, Language};
-use crate::models::{ImportedFrom, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind};
+use crate::models::{ImportedFrom, ItemInfoField, ItemStatus, ProgressLink, ProgressMode, ProgressNode, ProgressNodeKind};
 use crate::net::SearchError;
 use crate::source_import;
 use crate::state::{ItemStore, SourceStore};
@@ -19,18 +19,32 @@ use crate::state::{ItemStore, SourceStore};
 /// automatiquement par le store à chaque changement de progression.
 #[component]
 pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) -> Element {
-    let item_store = use_context::<Signal<ItemStore>>();
+    let mut item_store = use_context::<Signal<ItemStore>>();
     let expanded = use_signal(HashSet::<usize>::new);
     let editing_card = use_signal(|| None::<usize>);
 
-    let (progress, imported_from): (Vec<ProgressNode>, Option<ImportedFrom>) = item_store
+    let i18n_text = use_texts();
+    let Some(placement) = item_store
         .read()
         .items
         .iter()
         .find(|i| i.id == item_id)
         .and_then(|i| i.placements.iter().find(|p| p.category_id == category_id && p.subcategory_id == subcategory_id))
-        .map(|p| (p.progress.clone(), p.imported_from.clone()))
-        .unwrap_or_default();
+        .cloned()
+    else {
+        return rsx! {};
+    };
+
+    if placement.progress_mode == ProgressMode::Single {
+        return rsx! {
+            SingleProgress { item_id, category_id, subcategory_id, status: placement.status }
+        };
+    }
+
+    let progress = placement.progress;
+    let imported_from = placement.imported_from;
+    // Le choix liste / fiche simple ne se fait que tant que rien n'est suivi.
+    let can_switch = progress.is_empty() && imported_from.is_none();
 
     rsx! {
         div { class: "progress-panel",
@@ -53,6 +67,49 @@ pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) 
                 children_kind: Some(ProgressNodeKind::Group),
                 expanded,
                 editing_card,
+            }
+            if can_switch {
+                button {
+                    r#type: "button",
+                    class: "progress-mode-switch",
+                    onclick: move |_| {
+                        item_store.write().set_progress_mode(item_id, category_id, subcategory_id, ProgressMode::Single);
+                    },
+                    "{i18n_text.use_single_mode}"
+                }
+            }
+        }
+    }
+}
+
+/// Fiche simple (un film…) : pas de liste, l'œuvre est terminée ou pas.
+/// Le statut se change ici d'un clic, ou dans le sélecteur de statut.
+#[component]
+fn SingleProgress(item_id: usize, category_id: usize, subcategory_id: usize, status: ItemStatus) -> Element {
+    let i18n_text = use_texts();
+    let mut item_store = use_context::<Signal<ItemStore>>();
+    let mut set_status = move |status: ItemStatus| {
+        item_store.write().set_placement_status(item_id, category_id, subcategory_id, status);
+    };
+
+    rsx! {
+        div { class: "progress-panel progress-single",
+            p { class: "progress-usage-hint", "{i18n_text.progress_single_hint}" }
+            div { class: "progress-single-actions",
+                if status == ItemStatus::Done {
+                    span { class: "progress-single-done", "✓ {i18n_text.marked_done}" }
+                    button { r#type: "button", onclick: move |_| set_status(ItemStatus::New), "{i18n_text.unmark_done}" }
+                } else {
+                    button { r#type: "button", class: "primary-btn", onclick: move |_| set_status(ItemStatus::Done), "✓ {i18n_text.mark_done}" }
+                }
+            }
+            button {
+                r#type: "button",
+                class: "progress-mode-switch",
+                onclick: move |_| {
+                    item_store.write().set_progress_mode(item_id, category_id, subcategory_id, ProgressMode::List);
+                },
+                "{i18n_text.use_list_mode}"
             }
         }
     }

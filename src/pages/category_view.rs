@@ -116,20 +116,12 @@ pub fn CategoryView(category_id: usize, subcategory_id: usize) -> Element {
                 select {
                     class: "toolbar-control",
                     onchange: move |event| {
-                        status_filter
-                            .set(
-                                match event.value().as_str() {
-                                    "new" => Some(ItemStatus::New),
-                                    "in_progress" => Some(ItemStatus::InProgress),
-                                    "done" => Some(ItemStatus::Done),
-                                    _ => None,
-                                },
-                            );
+                        status_filter.set(ItemStatus::from_key(&event.value()));
                     },
                     option { value: "all", "{i18n_text.status_all}" }
-                    option { value: "new", "{i18n_text.status_new}" }
-                    option { value: "in_progress", "{i18n_text.status_in_progress}" }
-                    option { value: "done", "{i18n_text.status_done}" }
+                    for status in ItemStatus::ALL {
+                        option { key: "{status.value_key()}", value: "{status.value_key()}", "{i18n_text.status_name(status)}" }
+                    }
                 }
                 // Combobox de filtre des Types
                 TypeFilterDropdown { category_ids: vec![category_id], selected: type_filter }

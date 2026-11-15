@@ -109,6 +109,16 @@
     font-weight: bold;
 }
 
+/* Œuvre en pause dans « Continuer ». */
+.home-status-chip {
+    align-self: flex-start;
+    font-size: 0.75rem;
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text) 12%, transparent);
+    color: color-mix(in srgb, var(--text) 75%, transparent);
+}
+
 .home-release-count,
 .progress-new-badge {
     align-self: flex-start;

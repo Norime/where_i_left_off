@@ -401,6 +401,42 @@
     padding-top: 1rem;
     border-top: 1px solid #e0e0e0;
 }
+/* Fiche simple : pas de liste, juste terminé ou pas. */
+.progress-single {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.7rem;
+}
+.progress-single .progress-usage-hint {
+    margin: 0;
+}
+.progress-single-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+.progress-single-done {
+    font-weight: bold;
+    color: var(--success);
+}
+/* Passage liste / fiche simple : discret, sous la progression. */
+.progress-mode-switch {
+    margin-top: 0.8rem;
+    background: none;
+    border: none;
+    padding: 0;
+    color: color-mix(in srgb, var(--text) 60%, transparent);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+.progress-mode-switch:hover {
+    color: var(--text);
+}
+.progress-single .progress-mode-switch {
+    margin-top: 0;
+}
 .progress-panel-header {
     display: flex;
     align-items: baseline;

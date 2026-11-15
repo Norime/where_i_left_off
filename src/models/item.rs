@@ -6,20 +6,51 @@ pub enum ItemOrientation {
     Horizontal,
 }
 
+/// Où en est l'utilisateur dans un placement. Nouveau / En cours / Terminé
+/// se calculent d'après la progression quand il y a une liste à cocher ;
+/// À faire / En pause / Abandonné sont choisis à la main et gardés tels
+/// quels (sauf À faire, qui passe en cours dès qu'un élément est coché).
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ItemStatus {
     New,
     InProgress,
     Done,
+    Planned,
+    OnHold,
+    Dropped,
 }
 
 impl ItemStatus {
+    /// Ordre d'affichage dans les listes de choix.
+    pub const ALL: [ItemStatus; 6] = [
+        ItemStatus::New,
+        ItemStatus::Planned,
+        ItemStatus::InProgress,
+        ItemStatus::OnHold,
+        ItemStatus::Done,
+        ItemStatus::Dropped,
+    ];
+
+    /// Statuts qu'on ne peut que choisir à la main.
+    pub const MANUAL: [ItemStatus; 3] = [ItemStatus::Planned, ItemStatus::OnHold, ItemStatus::Dropped];
+
     pub fn value_key(&self) -> &'static str {
         match self {
             ItemStatus::New => "new",
             ItemStatus::InProgress => "in_progress",
             ItemStatus::Done => "done",
+            ItemStatus::Planned => "planned",
+            ItemStatus::OnHold => "on_hold",
+            ItemStatus::Dropped => "dropped",
         }
+    }
+
+    pub fn from_key(key: &str) -> Option<ItemStatus> {
+        ItemStatus::ALL.into_iter().find(|s| s.value_key() == key)
+    }
+
+    pub fn is_manual(&self) -> bool {
+        ItemStatus::MANUAL.contains(self)
     }
 
     pub fn rank(&self) -> u8 {
@@ -27,6 +58,9 @@ impl ItemStatus {
             ItemStatus::New => 0,
             ItemStatus::InProgress => 1,
             ItemStatus::Done => 2,
+            ItemStatus::Planned => 0,
+            ItemStatus::OnHold => 1,
+            ItemStatus::Dropped => 1,
         }
     }
 }
@@ -60,6 +94,15 @@ impl Default for WorkStatus {
     }
 }
 
+/// Comment se suit un placement : une liste d'éléments à cocher (épisodes,
+/// chapitres…), ou une fiche simple sans liste, juste vue ou pas (un film).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub enum ProgressMode {
+    #[default]
+    List,
+    Single,
+}
+
 /// Un onglet personnalisé ajouté par l'utilisateur à côté de l'onglet
 /// "Progression" (toujours présent, pas stocké ici), propre à un placement
 /// (catégorie/sous-catégorie). Pour l'instant un onglet n'a qu'un titre :
@@ -91,6 +134,57 @@ pub struct ItemPlacement {
     /// Source qui a rempli la progression, pour pouvoir la réimporter.
     #[serde(default)]
     pub imported_from: Option<ImportedFrom>,
+    #[serde(default)]
+    pub progress_mode: ProgressMode,
+}
+
+impl ItemPlacement {
+    /// Placement vide (statut Nouveau, pas de type ni de progression).
+    pub fn new(category_id: usize, subcategory_id: usize) -> Self {
+        ItemPlacement {
+            category_id,
+            subcategory_id,
+            status: ItemStatus::New,
+            type_ids: Vec::new(),
+            progress: Vec::new(),
+            work_status: WorkStatus::default(),
+            tabs: Vec::new(),
+            imported_from: None,
+            progress_mode: ProgressMode::default(),
+        }
+    }
+
+    /// Éléments cochables (Text/Card) de la progression.
+    pub fn leaves(&self) -> impl Iterator<Item = &ProgressNode> {
+        self.progress.iter().filter(|n| n.kind != ProgressNodeKind::Group)
+    }
+
+    /// Statut déduit de la progression : `None` en fiche simple ou sans
+    /// élément à cocher, où le statut ne se choisit qu'à la main.
+    pub fn computed_status(&self) -> Option<ItemStatus> {
+        if self.progress_mode != ProgressMode::List {
+            return None;
+        }
+        let total = self.leaves().count();
+        let done = self.leaves().filter(|n| n.is_done).count();
+        match (total, done) {
+            (0, _) => None,
+            (_, 0) => Some(ItemStatus::New),
+            (total, done) if done < total => Some(ItemStatus::InProgress),
+            _ => Some(ItemStatus::Done),
+        }
+    }
+
+    /// Recalcule le statut d'après la progression. En pause et Abandonné
+    /// restent tels quels ; À faire le reste tant que rien n'est coché.
+    pub fn refresh_status(&mut self) {
+        let Some(computed) = self.computed_status() else { return };
+        self.status = match self.status {
+            ItemStatus::OnHold | ItemStatus::Dropped => self.status,
+            ItemStatus::Planned if computed == ItemStatus::New => ItemStatus::Planned,
+            _ => computed,
+        };
+    }
 }
 
 /// D'où vient la progression importée d'un placement : la source utilisée
@@ -205,4 +299,64 @@ pub struct Item {
     pub orientation: ItemOrientation,
     pub image_url: Option<String>,
     pub extra_info: Vec<ItemInfoField>,
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn leaf(id: usize, is_done: bool) -> ProgressNode {
+        ProgressNode {
+            id,
+            parent_id: None,
+            kind: ProgressNodeKind::Text,
+            children_kind: None,
+            title: format!("{id}"),
+            is_done,
+            image_url: None,
+            fields: Vec::new(),
+            redirect_links: Vec::new(),
+            is_new: false,
+            new_since: None,
+        }
+    }
+
+    #[test]
+    fn manual_statuses_survive_progress_changes() {
+        let mut placement = ItemPlacement::new(1, 1);
+        placement.progress = vec![leaf(0, false), leaf(1, false)];
+
+        placement.status = ItemStatus::Planned;
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::Planned);
+        placement.progress[0].is_done = true;
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::InProgress);
+
+        placement.status = ItemStatus::OnHold;
+        placement.progress[1].is_done = true;
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::OnHold);
+
+        placement.status = ItemStatus::Dropped;
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::Dropped);
+    }
+
+    #[test]
+    fn single_mode_status_is_never_computed() {
+        let mut placement = ItemPlacement::new(1, 1);
+        placement.progress_mode = ProgressMode::Single;
+        placement.status = ItemStatus::Done;
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::Done);
+        assert_eq!(placement.computed_status(), None);
+    }
+
+    #[test]
+    fn old_placements_load_in_list_mode() {
+        let placement: ItemPlacement =
+            serde_json::from_str(r#"{ "category_id": 1, "subcategory_id": 2, "status": "InProgress" }"#).unwrap();
+        assert_eq!(placement.progress_mode, ProgressMode::List);
+        assert_eq!(placement.status, ItemStatus::InProgress);
+    }
 }

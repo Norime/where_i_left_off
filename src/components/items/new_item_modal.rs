@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 
 use crate::components::{FetchedItemData, InlineAddForm, ItemSourceSearch, Modal, TypeCheckboxList};
 use crate::i18n::use_texts;
-use crate::models::{ImportedFrom, ItemInfoField, ItemOrientation, ItemPlacement, ItemStatus, ProgressNode, ProgressNodeKind, WorkStatus};
+use crate::models::{ImportedFrom, ItemInfoField, ItemOrientation, ItemPlacement, ProgressNode, ProgressNodeKind};
 use crate::state::{ItemStore, TypeStore};
 
 #[component]
@@ -36,14 +36,10 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                     }
 
                     let placement = ItemPlacement {
-                        category_id,
-                        subcategory_id,
-                        status: ItemStatus::New,
                         type_ids: selected_type_ids.read().iter().cloned().collect(),
                         progress: progress.read().clone(),
-                        work_status: WorkStatus::default(),
-                        tabs: Vec::new(),
                         imported_from: imported_from.read().clone(),
+                        ..ItemPlacement::new(category_id, subcategory_id)
                     };
 
                     item_store
