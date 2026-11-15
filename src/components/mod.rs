@@ -7,6 +7,8 @@ mod items;
 mod accounts;
 mod language_select;
 mod url_image_button;
+mod avatar_image;
+mod avatar_crop_modal;
 pub mod toast;
 pub mod sources;
 
@@ -19,4 +21,6 @@ pub use items::{ItemCard, NewItemModal, EditItemModal, AddPlacementModal, TypeCh
 pub use accounts::{AccountTile, AddAccountTile, NewAccountModal, PasswordPromptModal};
 pub use language_select::{LanguageSelect, LanguageFlag};
 pub use url_image_button::UrlImageButton;
+pub use avatar_image::AvatarImage;
+pub use avatar_crop_modal::AvatarCropModal;
 pub use toast::{use_toast_provider, use_toasts, ToastHost};

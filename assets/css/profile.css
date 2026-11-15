@@ -128,13 +128,9 @@
     border-radius: 4px;
 }
 
-.profile-avatar-row {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
 
 .profile-avatar-preview {
+    position: relative;
     width: 56px;
     height: 56px;
     border-radius: 50%;
@@ -157,10 +153,6 @@
 .profile-password-actions {
     display: flex;
     gap: 0.6rem;
-}
-.profile-avatar-preview--large {
-    width: 96px;
-    height: 96px;
 }
 
 /* Thème : une ligne par couleur. */
@@ -593,10 +585,6 @@
     margin: 0;
 }
 
-.profile-avatar-row .theme-image-actions {
-    flex: 1;
-}
-
 
 .theme-image-actions {
     align-items: center;
@@ -617,4 +605,120 @@
 
 .theme-image-info .url-image-form {
     grid-column: 1 / -1;
+}
+
+/* Icône : image cadrée dans son cercle (voir `AvatarImage`). Couche à part
+   pour rogner l'image sans rogner ce qui dépasse du cercle. */
+.avatar-clip {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.avatar-image {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+/* Fenêtre de recadrage : grand cercle à faire glisser + zoom. */
+.avatar-crop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin: 0.5rem 0 1rem;
+}
+
+.avatar-crop-stage {
+    position: relative;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background-color: #c9c9c9;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 25%, transparent);
+    cursor: grab;
+    user-select: none;
+}
+
+.avatar-crop-stage--dragging {
+    cursor: grabbing;
+}
+
+.avatar-crop-zoom {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+}
+
+.avatar-crop-zoom input {
+    width: 12rem;
+}
+
+/* Réglages › Icône : carte avec l'icône (et son recadrage) à gauche, le
+   choix d'une nouvelle image à droite, la suppression en bas. */
+.icon-card {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2rem 2rem;
+    max-width: 34rem;
+    padding: 1.2rem;
+    border: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+.icon-card-avatar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+    width: 128px;
+}
+
+.icon-card-preview {
+    width: 128px;
+    height: 128px;
+}
+
+.icon-card-actions {
+    flex: 1 1 13rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.icon-card-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+/* Les deux sources l'une au-dessus de l'autre, même largeur ; le champ
+   d'adresse, une fois ouvert, prend la largeur de la carte. */
+.icon-card-sources {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 13rem;
+}
+
+.icon-card-sources:has(.url-image-form) {
+    max-width: none;
+}
+
+.icon-card-sources > .theme-import-btn,
+.icon-card-avatar .theme-import-btn {
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Suppression à part, poussée en bas de la colonne. */
+.icon-card-remove {
+    margin-top: auto;
 }

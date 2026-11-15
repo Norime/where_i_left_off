@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use crate::components::DeleteButton;
+use crate::components::{AvatarImage, DeleteButton};
 use crate::models::User;
 use crate::persistence;
 
@@ -10,20 +10,16 @@ use crate::persistence;
 /// de passe).
 #[component]
 pub fn AccountTile(user: User, onselect: EventHandler<()>, ondelete: EventHandler<()>) -> Element {
-    // Toujours une valeur explicite : en mettant à jour `style`, Dioxus
-    // remet les anciennes propriétés absentes de la nouvelle valeur, une
-    // chaîne vide garderait donc l'image précédente.
-    let background_style = format!(
-        "background-image: {};",
-        persistence::avatar_css_url(&user).unwrap_or_else(|| "none".to_string())
-    );
+    // Recalculé seulement quand le compte change (lecture du fichier).
+    let css_url = use_memo(use_reactive((&user,), |(user,)| persistence::avatar_css_url(&user)));
+    let crop = user.avatar_crop;
 
     rsx! {
         div { class: "account-tile",
             div {
                 class: "account-avatar",
-                style: "{background_style}",
                 onclick: move |_| onselect.call(()),
+                AvatarImage { css_url: css_url(), crop }
                 if user.password_hash.is_some() {
                     span { class: "password-badge", "🔒" }
                 }

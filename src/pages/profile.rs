@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use crate::components::{LanguageSelect, UrlImageButton};
+use crate::components::{AvatarCropModal, AvatarImage, LanguageSelect, UrlImageButton};
 use crate::i18n::use_texts;
 use crate::models::{User, MAX_IMAGE_BYTES};
 use crate::pages::theme_settings::ThemeSection;
@@ -228,13 +228,10 @@ fn IconSection(user: User) -> Element {
     let mut error = use_signal(|| None::<String>);
     let user_id = user.id;
     let has_avatar = user.avatar_file.is_some() || user.avatar_url.is_some();
-    // Toujours une valeur explicite : en mettant à jour `style`, Dioxus
-    // remet les anciennes propriétés absentes de la nouvelle valeur, une
-    // chaîne vide garderait donc l'image précédente.
-    let preview_style = format!(
-        "background-image: {};",
-        persistence::avatar_css_url(&user).unwrap_or_else(|| "none".to_string())
-    );
+    // Recalculé seulement quand le compte change (lecture du fichier).
+    let css_url = use_memo(use_reactive((&user,), |(user,)| persistence::avatar_css_url(&user)));
+    let crop = user.avatar_crop;
+    let mut cropping = use_signal(|| false);
 
     // Copie l'image (fichier choisi ou téléchargée depuis une URL) dans le
     // dossier du compte.
@@ -242,6 +239,8 @@ fn IconSection(user: User) -> Element {
         Ok(name) => {
             user_store.write().set_avatar_file(user_id, Some(name));
             error.set(None);
+            // Nouvelle image : on propose tout de suite de la cadrer.
+            cropping.set(true);
         }
         Err(e) => error.set(Some(i18n_text.media_error(&e))),
     };
@@ -263,25 +262,39 @@ fn IconSection(user: User) -> Element {
     rsx! {
         h1 { "{i18n_text.icon}" }
         p { class: "profile-hint", "{i18n_text.icon_hint}" }
-        div { class: "profile-avatar-row",
-            div {
-                class: "profile-avatar-preview profile-avatar-preview--large",
-                style: "{preview_style}",
-            }
-            div { class: "theme-image-actions",
-                label { class: "theme-import-btn",
-                    "📁 {i18n_text.from_file}"
-                    input {
-                        r#type: "file",
-                        accept: "image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif",
-                        onchange: choose,
-                    }
+        // Carte : l'icône et son recadrage à gauche, le choix d'une nouvelle
+        // image à droite, la suppression à part en bas.
+        div { class: "icon-card",
+            div { class: "icon-card-avatar",
+                div { class: "profile-avatar-preview icon-card-preview",
+                    AvatarImage { css_url: css_url(), crop }
                 }
-                UrlImageButton { onloaded: move |bytes: Vec<u8>| apply(bytes) }
                 if has_avatar {
                     button {
                         r#type: "button",
-                        class: "theme-remove-btn",
+                        class: "theme-import-btn",
+                        onclick: move |_| cropping.set(true),
+                        "✂ {i18n_text.crop_button}"
+                    }
+                }
+            }
+            div { class: "icon-card-actions",
+                span { class: "icon-card-label", "{i18n_text.new_image}" }
+                div { class: "icon-card-sources",
+                    label { class: "theme-import-btn",
+                        "📁 {i18n_text.from_file}"
+                        input {
+                            r#type: "file",
+                            accept: "image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif",
+                            onchange: choose,
+                        }
+                    }
+                    UrlImageButton { onloaded: move |bytes: Vec<u8>| apply(bytes) }
+                }
+                if has_avatar {
+                    button {
+                        r#type: "button",
+                        class: "theme-remove-btn icon-card-remove",
                         onclick: move |_| {
                             user_store.write().set_avatar_file(user_id, None);
                             persistence::remove_other_avatars(user_id, None);
@@ -290,10 +303,21 @@ fn IconSection(user: User) -> Element {
                         "🗑 {i18n_text.remove_image}"
                     }
                 }
+                if let Some(message) = error() {
+                    p { class: "auth-error", "{message}" }
+                }
             }
         }
-        if let Some(message) = error() {
-            p { class: "auth-error", "{message}" }
+        if let (true, Some(url)) = (cropping(), css_url()) {
+            AvatarCropModal {
+                css_url: url,
+                initial: crop,
+                onsave: move |crop| {
+                    user_store.write().set_avatar_crop(user_id, crop);
+                    cropping.set(false);
+                },
+                onclose: move |_| cropping.set(false),
+            }
         }
     }
 }
