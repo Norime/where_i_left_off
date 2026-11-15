@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use crate::components::{DeleteButton, FetchedItemData, ItemSourceSearch, Modal};
 use crate::i18n::{use_texts, Language};
-use crate::models::{ImportedFrom, ItemInfoField, ItemStatus, ProgressLink, ProgressMode, ProgressNode, ProgressNodeKind};
+use crate::models::{CounterSettings, ImportedFrom, ItemInfoField, ItemStatus, ProgressLink, ProgressMode, ProgressNode, ProgressNodeKind};
 use crate::net::SearchError;
 use crate::source_import;
 use crate::state::{ItemStore, SourceStore};
@@ -35,57 +35,99 @@ pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) 
         return rsx! {};
     };
 
-    if placement.progress_mode == ProgressMode::Single {
-        return rsx! {
-            SingleProgress {
-                item_id,
-                category_id,
-                subcategory_id,
-                status: placement.status,
-                resume_at: placement.resume_at,
-            }
-        };
-    }
-
+    let mode = placement.progress_mode;
     let progress = placement.progress;
     let imported_from = placement.imported_from;
-    // Le choix liste / fiche simple ne se fait que tant que rien n'est suivi.
-    let can_switch = progress.is_empty() && imported_from.is_none();
+    // La fiche simple n'affiche pas de liste : seulement tant qu'il n'y en a
+    // aucune, pour n'en masquer jamais.
+    let can_use_single = progress.is_empty() && imported_from.is_none();
 
     rsx! {
-        div { class: "progress-panel",
-            if let Some(imported_from) = imported_from {
-                ReimportButton {
+        div { class: if mode == ProgressMode::Single { "progress-panel progress-single" } else { "progress-panel" },
+            label { class: "progress-mode-row",
+                span { class: "field-label", "{i18n_text.progress_mode_label}" }
+                select {
+                    class: "progress-mode-select",
+                    value: "{mode.key()}",
+                    title: if !can_use_single && mode != ProgressMode::Single { "{i18n_text.single_mode_unavailable}" },
+                    onchange: move |event| {
+                        if let Some(mode) = ProgressMode::from_key(&event.value()) {
+                            item_store.write().set_progress_mode(item_id, category_id, subcategory_id, mode);
+                        }
+                    },
+                    for option_mode in ProgressMode::ALL {
+                        option {
+                            key: "{option_mode.key()}",
+                            value: "{option_mode.key()}",
+                            selected: option_mode == mode,
+                            disabled: option_mode == ProgressMode::Single && !can_use_single && mode != ProgressMode::Single,
+                            "{i18n_text.progress_mode_name(option_mode)}"
+                        }
+                    }
+                }
+            }
+            match mode {
+                ProgressMode::Single => rsx! {
+                    SingleProgress {
+                        item_id,
+                        category_id,
+                        subcategory_id,
+                        status: placement.status,
+                        resume_at: placement.resume_at,
+                    }
+                },
+                ProgressMode::Percent => rsx! {
+                    PercentProgress { item_id, category_id, subcategory_id, value: placement.progress_value }
+                },
+                ProgressMode::Counter => rsx! {
+                    CounterProgress {
+                        item_id,
+                        category_id,
+                        subcategory_id,
+                        value: placement.progress_value,
+                        settings: placement.counter,
+                    }
+                },
+                ProgressMode::List => rsx! {},
+            }
+            if mode != ProgressMode::Single {
+                if mode != ProgressMode::List {
+                    p { class: "progress-usage-hint progress-list-hint", "{i18n_text.list_not_counted}" }
+                }
+                if let Some(imported_from) = imported_from {
+                    ReimportButton {
+                        item_id,
+                        category_id,
+                        subcategory_id,
+                        imported_from,
+                    }
+                } else {
+                    LinkSourceButton { item_id, category_id, subcategory_id }
+                }
+                ProgressNodeList {
                     item_id,
                     category_id,
                     subcategory_id,
-                    imported_from,
-                }
-            } else {
-                LinkSourceButton { item_id, category_id, subcategory_id }
-            }
-            ProgressNodeList {
-                item_id,
-                category_id,
-                subcategory_id,
-                all_nodes: progress,
-                parent_id: None,
-                children_kind: Some(ProgressNodeKind::Group),
-                expanded,
-                editing_card,
-            }
-            if can_switch {
-                button {
-                    r#type: "button",
-                    class: "progress-mode-switch",
-                    onclick: move |_| {
-                        item_store.write().set_progress_mode(item_id, category_id, subcategory_id, ProgressMode::Single);
-                    },
-                    "{i18n_text.use_single_mode}"
+                    all_nodes: progress,
+                    parent_id: None,
+                    children_kind: Some(ProgressNodeKind::Group),
+                    expanded,
+                    editing_card,
                 }
             }
         }
     }
+}
+
+/// Lit un nombre saisi, avec un point ou une virgule. Vide = pas de valeur.
+fn parse_number(text: &str) -> Option<f64> {
+    text.trim().replace(',', ".").parse::<f64>().ok().filter(|v| v.is_finite())
+}
+
+/// Nombre écrit dans un champ `type="number"` (toujours avec un point),
+/// arrondi au centième.
+fn input_number(value: f64) -> String {
+    format!("{}", (value * 100.0).round() / 100.0)
 }
 
 /// Fiche simple (un film…) : pas de liste, l'œuvre est terminée ou pas.
@@ -99,32 +141,129 @@ fn SingleProgress(item_id: usize, category_id: usize, subcategory_id: usize, sta
     };
 
     rsx! {
-        div { class: "progress-panel progress-single",
-            p { class: "progress-usage-hint", "{i18n_text.progress_single_hint}" }
-            div { class: "progress-single-actions",
-                if status == ItemStatus::Done {
-                    span { class: "progress-single-done", "✓ {i18n_text.marked_done}" }
-                    button { r#type: "button", onclick: move |_| set_status(ItemStatus::New), "{i18n_text.unmark_done}" }
-                } else {
-                    button { r#type: "button", class: "primary-btn", onclick: move |_| set_status(ItemStatus::Done), "✓ {i18n_text.mark_done}" }
-                    label { class: "progress-single-resume",
-                        "{i18n_text.resume_at_label}"
-                        ResumeInput {
-                            value: resume_at,
-                            onsave: move |value: String| {
-                                item_store.write().set_placement_resume_at(item_id, category_id, subcategory_id, &value);
-                            },
-                        }
+        p { class: "progress-usage-hint", "{i18n_text.progress_single_hint}" }
+        div { class: "progress-single-actions",
+            if status == ItemStatus::Done {
+                span { class: "progress-single-done", "✓ {i18n_text.marked_done}" }
+                button { r#type: "button", onclick: move |_| set_status(ItemStatus::New), "{i18n_text.unmark_done}" }
+            } else {
+                button { r#type: "button", class: "primary-btn", onclick: move |_| set_status(ItemStatus::Done), "✓ {i18n_text.mark_done}" }
+                label { class: "progress-single-resume",
+                    "{i18n_text.resume_at_label}"
+                    ResumeInput {
+                        value: resume_at,
+                        onsave: move |value: String| {
+                            item_store.write().set_placement_resume_at(item_id, category_id, subcategory_id, &value);
+                        },
                     }
                 }
             }
-            button {
-                r#type: "button",
-                class: "progress-mode-switch",
-                onclick: move |_| {
-                    item_store.write().set_progress_mode(item_id, category_id, subcategory_id, ProgressMode::List);
+        }
+    }
+}
+
+/// Mode pourcentage (ex : 87 % d'un jeu) : curseur et champ, 100 % termine
+/// l'œuvre.
+#[component]
+fn PercentProgress(item_id: usize, category_id: usize, subcategory_id: usize, value: Option<f64>) -> Element {
+    let mut item_store = use_context::<Signal<ItemStore>>();
+    let current = value.unwrap_or(0.0);
+    let mut save = move |value: Option<f64>| {
+        item_store.write().set_progress_value(item_id, category_id, subcategory_id, value);
+    };
+
+    rsx! {
+        div { class: "progress-measure",
+            input {
+                r#type: "range",
+                class: "progress-measure-range",
+                min: "0",
+                max: "100",
+                step: "1",
+                value: "{input_number(current)}",
+                oninput: move |event| save(parse_number(&event.value())),
+            }
+            input {
+                r#type: "number",
+                class: "progress-measure-number",
+                min: "0",
+                max: "100",
+                step: "any",
+                value: "{input_number(current)}",
+                onchange: move |event| save(parse_number(&event.value())),
+            }
+            span { class: "progress-measure-unit", "%" }
+        }
+    }
+}
+
+/// Mode compteur (heures de jeu, pages…) : valeur avec +1 / −1, unité et
+/// objectif facultatif. Atteindre l'objectif termine l'œuvre ; sans
+/// objectif, le statut Terminé se choisit à la main.
+#[component]
+fn CounterProgress(item_id: usize, category_id: usize, subcategory_id: usize, value: Option<f64>, settings: CounterSettings) -> Element {
+    let i18n_text = use_texts();
+    let mut item_store = use_context::<Signal<ItemStore>>();
+    let current = value.unwrap_or(0.0);
+    let mut save = move |value: Option<f64>| {
+        item_store.write().set_progress_value(item_id, category_id, subcategory_id, value);
+    };
+    let CounterSettings { unit, target } = settings;
+    let unit_for_target = unit.clone();
+    let target_for_unit = target;
+    let percent = target.map(|target| (current / target * 100.0).clamp(0.0, 100.0));
+
+    rsx! {
+        div { class: "progress-measure",
+            button { r#type: "button", class: "progress-measure-step", onclick: move |_| save(Some((current - 1.0).max(0.0))), "−1" }
+            input {
+                r#type: "number",
+                class: "progress-measure-number",
+                min: "0",
+                step: "any",
+                value: "{input_number(current)}",
+                onchange: move |event| save(parse_number(&event.value())),
+            }
+            button { r#type: "button", class: "progress-measure-step", onclick: move |_| save(Some(current + 1.0)), "+1" }
+            span { class: "progress-measure-unit", "{unit}" }
+        }
+        if let (Some(percent), Some(target)) = (percent, target) {
+            div { class: "progress-measure-goal",
+                div { class: "home-check-bar",
+                    div { class: "home-check-bar-fill", width: "{percent}%" }
+                }
+                span { class: "progress-measure-count",
+                    "{(i18n_text.number)(current)} / {(i18n_text.number)(target)} {unit}"
+                }
+            }
+        }
+        div { class: "progress-counter-settings",
+            input {
+                r#type: "text",
+                class: "progress-counter-unit",
+                value: "{unit}",
+                placeholder: "{i18n_text.counter_unit_placeholder}",
+                onchange: move |event| {
+                    item_store
+                        .write()
+                        .set_counter_settings(item_id, category_id, subcategory_id, event.value(), target_for_unit);
                 },
-                "{i18n_text.use_list_mode}"
+            }
+            input {
+                r#type: "number",
+                class: "progress-measure-number",
+                min: "0",
+                step: "any",
+                value: target.map(input_number).unwrap_or_default(),
+                placeholder: "{i18n_text.counter_target_placeholder}",
+                onchange: move |event| {
+                    item_store
+                        .write()
+                        .set_counter_settings(item_id, category_id, subcategory_id, unit_for_target.clone(), parse_number(&event.value()));
+                },
+            }
+            if target.is_none() {
+                span { class: "progress-usage-hint", "{i18n_text.counter_no_target_hint}" }
             }
         }
     }

@@ -95,12 +95,46 @@ impl Default for WorkStatus {
 }
 
 /// Comment se suit un placement : une liste d'éléments à cocher (épisodes,
-/// chapitres…), ou une fiche simple sans liste, juste vue ou pas (un film).
+/// chapitres…), une fiche simple sans liste, juste vue ou pas (un film), un
+/// pourcentage ou un compteur (heures de jeu, pages…). Hors fiche simple,
+/// les listes restent affichées, mais ne comptent dans le statut qu'en
+/// mode liste.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub enum ProgressMode {
     #[default]
     List,
     Single,
+    Percent,
+    Counter,
+}
+
+impl ProgressMode {
+    /// Ordre d'affichage dans le choix du mode.
+    pub const ALL: [ProgressMode; 4] = [ProgressMode::List, ProgressMode::Percent, ProgressMode::Counter, ProgressMode::Single];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            ProgressMode::List => "list",
+            ProgressMode::Single => "single",
+            ProgressMode::Percent => "percent",
+            ProgressMode::Counter => "counter",
+        }
+    }
+
+    pub fn from_key(key: &str) -> Option<ProgressMode> {
+        ProgressMode::ALL.into_iter().find(|m| m.key() == key)
+    }
+}
+
+/// Réglages du mode compteur : unité affichée (« heures », « pages ») et
+/// objectif facultatif. Sans objectif, le compteur ne termine jamais seul
+/// l'œuvre : le statut se choisit alors à la main.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct CounterSettings {
+    #[serde(default)]
+    pub unit: String,
+    #[serde(default)]
+    pub target: Option<f64>,
 }
 
 /// Un onglet personnalisé ajouté par l'utilisateur à côté de l'onglet
@@ -139,6 +173,11 @@ pub struct ItemPlacement {
     /// Fiche simple : où l'on s'est arrêté (« 1:12:00 », « p. 230 »).
     #[serde(default)]
     pub resume_at: Option<String>,
+    /// Valeur du pourcentage (0 à 100) ou du compteur.
+    #[serde(default)]
+    pub progress_value: Option<f64>,
+    #[serde(default)]
+    pub counter: CounterSettings,
 }
 
 impl ItemPlacement {
@@ -155,6 +194,8 @@ impl ItemPlacement {
             imported_from: None,
             progress_mode: ProgressMode::default(),
             resume_at: None,
+            progress_value: None,
+            counter: CounterSettings::default(),
         }
     }
 
@@ -163,11 +204,33 @@ impl ItemPlacement {
         self.progress.iter().filter(|n| n.kind != ProgressNodeKind::Group)
     }
 
-    /// Statut déduit de la progression : `None` en fiche simple ou sans
-    /// élément à cocher, où le statut ne se choisit qu'à la main.
+    /// Avancement en % (pourcentage, ou compteur avec objectif).
+    pub fn measure_percent(&self) -> Option<f64> {
+        let value = self.progress_value.unwrap_or(0.0);
+        match self.progress_mode {
+            ProgressMode::Percent => Some(value.clamp(0.0, 100.0)),
+            ProgressMode::Counter => self.counter.target.map(|target| (value / target * 100.0).clamp(0.0, 100.0)),
+            _ => None,
+        }
+    }
+
+    /// Statut déduit de la progression : `None` en fiche simple, sans
+    /// élément à cocher, ou pour un compteur sans objectif, où le statut ne
+    /// se choisit qu'à la main.
     pub fn computed_status(&self) -> Option<ItemStatus> {
-        if self.progress_mode != ProgressMode::List {
-            return None;
+        match self.progress_mode {
+            ProgressMode::Single => return None,
+            ProgressMode::Percent | ProgressMode::Counter => {
+                let percent = self.measure_percent()?;
+                return Some(if percent <= 0.0 {
+                    ItemStatus::New
+                } else if percent < 100.0 {
+                    ItemStatus::InProgress
+                } else {
+                    ItemStatus::Done
+                });
+            }
+            ProgressMode::List => {}
         }
         let total = self.leaves().count();
         let done = self.leaves().filter(|n| n.is_done).count();
@@ -185,7 +248,15 @@ impl ItemPlacement {
     /// Recalcule le statut d'après la progression. En pause et Abandonné
     /// restent tels quels ; À faire le reste tant que rien n'est coché.
     pub fn refresh_status(&mut self) {
-        let Some(computed) = self.computed_status() else { return };
+        let Some(computed) = self.computed_status() else {
+            // Compteur sans objectif : une valeur notée compte l'œuvre
+            // comme commencée, la fin se choisit à la main.
+            let counted = self.progress_mode == ProgressMode::Counter && self.progress_value.is_some_and(|v| v > 0.0);
+            if counted && matches!(self.status, ItemStatus::New | ItemStatus::Planned) {
+                self.status = ItemStatus::InProgress;
+            }
+            return;
+        };
         self.status = match self.status {
             ItemStatus::OnHold | ItemStatus::Dropped => self.status,
             ItemStatus::Planned if computed == ItemStatus::New => ItemStatus::Planned,
@@ -380,6 +451,31 @@ mod tests {
         placement.refresh_status();
         assert_eq!(placement.status, ItemStatus::Done);
         assert_eq!(placement.computed_status(), None);
+    }
+
+    #[test]
+    fn percent_and_counter_compute_status_and_ignore_lists() {
+        let mut placement = ItemPlacement::new(1, 1);
+        placement.progress = vec![leaf(0, true)];
+        placement.progress_mode = ProgressMode::Percent;
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::New);
+        placement.progress_value = Some(87.0);
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::InProgress);
+        placement.progress_value = Some(100.0);
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::Done);
+
+        placement.progress_mode = ProgressMode::Counter;
+        placement.status = ItemStatus::New;
+        placement.progress_value = Some(64.5);
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::InProgress);
+        assert_eq!(placement.computed_status(), None);
+        placement.counter.target = Some(60.0);
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::Done);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::source_import;
-use crate::models::{clean_resume_at, ImportedFrom, Item, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind, ItemOrientation, ItemPlacement, ItemStatus, ProgressMode, WorkStatus, ItemTab};
+use crate::models::{clean_resume_at, CounterSettings, ImportedFrom, Item, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind, ItemOrientation, ItemPlacement, ItemStatus, ProgressMode, WorkStatus, ItemTab};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct ItemStore {
@@ -138,14 +138,36 @@ impl ItemStore {
         self.recompute_placement_status(item_id, category_id, subcategory_id);
     }
 
-    /// Passe un placement en liste ou en fiche simple. Seulement quand il
-    /// n'a encore aucune progression : une liste existante n'est jamais
-    /// masquée ni perdue.
+    /// Change la façon de suivre un placement. Les listes sont gardées dans
+    /// tous les modes ; la fiche simple, qui n'en affiche pas, n'est
+    /// possible que tant qu'il n'y en a aucune, pour n'en masquer jamais.
     pub fn set_progress_mode(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, mode: ProgressMode) {
         if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
-            if placement.progress.is_empty() {
+            if mode != ProgressMode::Single || placement.progress.is_empty() {
                 placement.progress_mode = mode;
+                placement.refresh_status();
             }
+        }
+    }
+
+    /// Valeur du pourcentage (ramenée entre 0 et 100) ou du compteur
+    /// (jamais négative). `None` ou une valeur invalide efface la valeur.
+    pub fn set_progress_value(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, value: Option<f64>) {
+        if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
+            let max = if placement.progress_mode == ProgressMode::Percent { 100.0 } else { f64::MAX };
+            placement.progress_value = value.filter(|v| v.is_finite()).map(|v| v.clamp(0.0, max));
+            placement.refresh_status();
+        }
+    }
+
+    /// Unité et objectif du compteur (un objectif nul ou négatif est retiré).
+    pub fn set_counter_settings(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, unit: String, target: Option<f64>) {
+        if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
+            placement.counter = CounterSettings {
+                unit: unit.trim().to_string(),
+                target: target.filter(|t| t.is_finite() && *t > 0.0),
+            };
+            placement.refresh_status();
         }
     }
 

@@ -420,22 +420,76 @@
     font-weight: bold;
     color: var(--success);
 }
-/* Passage liste / fiche simple : discret, sous la progression. */
-.progress-mode-switch {
-    margin-top: 0.8rem;
-    background: none;
-    border: none;
-    padding: 0;
-    color: color-mix(in srgb, var(--text) 60%, transparent);
-    text-decoration: underline;
-    cursor: pointer;
+/* Choix du mode de suivi, en tête du panneau. */
+.progress-mode-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.8rem;
+}
+.progress-mode-row .progress-usage-hint {
+    margin-left: 0;
+}
+/* Pourcentage / compteur. */
+.progress-measure {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+.progress-measure-range {
+    flex: 1;
+    min-width: 8rem;
+    max-width: 22rem;
+    accent-color: var(--accent);
+}
+.progress-measure-number {
+    width: 6rem;
+    font: inherit;
+    padding: 0.25rem 0.4rem;
+    font-variant-numeric: tabular-nums;
+}
+.progress-measure-unit {
+    font-weight: bold;
+}
+.progress-measure-step {
+    min-width: 2.4rem;
+    font-variant-numeric: tabular-nums;
+}
+.progress-measure-goal {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+    max-width: 28rem;
+}
+.progress-measure-goal .home-check-bar {
+    flex: 1;
+}
+.progress-measure-count {
     font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
-.progress-mode-switch:hover {
-    color: var(--text);
+.progress-counter-settings {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
 }
-.progress-single .progress-mode-switch {
-    margin-top: 0;
+.progress-counter-unit {
+    width: 12rem;
+    font: inherit;
+    padding: 0.25rem 0.4rem;
+}
+.progress-counter-settings .progress-usage-hint {
+    margin-left: 0;
+}
+.progress-list-hint {
+    display: block;
+    margin: 1rem 0 0.4rem;
 }
 .progress-panel-header {
     display: flex;

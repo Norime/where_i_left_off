@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::net::SearchError;
 use crate::persistence::MediaError;
-use crate::models::{ImageFit, ItemStatus, MenuPosition, ThemeColor, ThemeImageSlot, ThemePreset};
+use crate::models::{ImageFit, ItemStatus, MenuPosition, ProgressMode, ThemeColor, ThemeImageSlot, ThemePreset};
 use crate::state::UserStore;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -130,11 +130,21 @@ pub struct Texts {
     pub status_auto: fn(&str) -> String,
     pub status_manual_hint: &'static str,
     pub progress_single_hint: &'static str,
-    pub use_single_mode: &'static str,
-    pub use_list_mode: &'static str,
     pub mark_done: &'static str,
     pub marked_done: &'static str,
     pub unmark_done: &'static str,
+    pub progress_mode_label: &'static str,
+    pub progress_mode_list: &'static str,
+    pub progress_mode_single: &'static str,
+    pub progress_mode_percent: &'static str,
+    pub progress_mode_counter: &'static str,
+    pub single_mode_unavailable: &'static str,
+    pub list_not_counted: &'static str,
+    pub counter_unit_placeholder: &'static str,
+    pub counter_target_placeholder: &'static str,
+    pub counter_no_target_hint: &'static str,
+    pub number: fn(f64) -> String,
+    pub percent: fn(f64) -> String,
     pub resume_at_label: &'static str,
     pub resume_at_placeholder: &'static str,
     pub resume_at_hint: &'static str,
@@ -463,6 +473,15 @@ impl Texts {
             ItemStatus::Planned => self.status_planned,
             ItemStatus::OnHold => self.status_on_hold,
             ItemStatus::Dropped => self.status_dropped,
+        }
+    }
+
+    pub fn progress_mode_name(&self, mode: ProgressMode) -> &'static str {
+        match mode {
+            ProgressMode::List => self.progress_mode_list,
+            ProgressMode::Single => self.progress_mode_single,
+            ProgressMode::Percent => self.progress_mode_percent,
+            ProgressMode::Counter => self.progress_mode_counter,
         }
     }
 

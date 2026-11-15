@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 
 use crate::components::sources::SourceCatalogPanel;
 use crate::i18n::{use_texts, Language, Texts};
-use crate::models::{Category, Item, ItemPlacement, ItemStatus, ProgressNode};
+use crate::models::{Category, Item, ItemPlacement, ItemStatus, ProgressMode, ProgressNode};
 use crate::routes::Route;
 use crate::source_import;
 use crate::state::{CategoryStore, ItemStore, SourceStore};
@@ -31,12 +31,36 @@ struct ContinueEntry {
     title: String,
     subcategory_name: String,
     image_url: Option<String>,
-    /// Éléments cochés / total, si le placement a une liste.
-    progress: Option<(usize, usize)>,
+    /// Remplissage de la barre (en %), s'il y a une mesure ou une liste.
+    bar: Option<f64>,
+    /// Avancement écrit (« 3 / 12 », « 87 % », « 64,5 heures »).
+    count: Option<String>,
     /// Où reprendre : l'élément commencé et sa position, sinon le premier
     /// élément pas encore coché.
     next_line: Option<String>,
     on_hold: bool,
+}
+
+/// Avancement d'une œuvre en cours : la mesure en mode pourcentage ou
+/// compteur, sinon les éléments cochés de la liste.
+fn progress_summary(i18n_text: &Texts, placement: &ItemPlacement, leaves: &[&ProgressNode]) -> (Option<f64>, Option<String>) {
+    let value = placement.progress_value.unwrap_or(0.0);
+    match placement.progress_mode {
+        ProgressMode::Percent => (Some(value.clamp(0.0, 100.0)), Some((i18n_text.percent)(value))),
+        ProgressMode::Counter => {
+            let unit = &placement.counter.unit;
+            let count = match placement.counter.target {
+                Some(target) => format!("{} / {} {unit}", (i18n_text.number)(value), (i18n_text.number)(target)),
+                None => format!("{} {unit}", (i18n_text.number)(value)),
+            };
+            (placement.measure_percent(), Some(count.trim().to_string()))
+        }
+        ProgressMode::List if !leaves.is_empty() => {
+            let done = leaves.iter().filter(|n| n.is_done).count();
+            (Some((done * 100 / leaves.len()) as f64), Some((i18n_text.progress_count)(done, leaves.len())))
+        }
+        _ => (None, None),
+    }
 }
 
 /// Ligne « où reprendre » d'une œuvre en cours : la position de la fiche
@@ -139,7 +163,7 @@ pub fn Home() -> Element {
             return None;
         }
         let leaves: Vec<_> = p.leaves().collect();
-        let done = leaves.iter().filter(|n| n.is_done).count();
+        let (bar, count) = progress_summary(i18n_text, p, &leaves);
         Some(ContinueEntry {
             item_id: item.id,
             category_id: p.category_id,
@@ -147,7 +171,8 @@ pub fn Home() -> Element {
             title: item.title.clone(),
             subcategory_name,
             image_url: item.image_url.clone(),
-            progress: (!leaves.is_empty()).then_some((done, leaves.len())),
+            bar,
+            count,
             next_line: next_line(i18n_text, p, &leaves),
             on_hold: p.status == ItemStatus::OnHold,
         })
@@ -308,7 +333,7 @@ fn NewReleaseCard(release: NewRelease) -> Element {
 #[component]
 fn ContinueCard(entry: ContinueEntry) -> Element {
     let i18n_text = use_texts();
-    let ContinueEntry { item_id, category_id, subcategory_id, progress, on_hold, .. } = entry;
+    let ContinueEntry { item_id, category_id, subcategory_id, bar, on_hold, .. } = entry;
 
     let image_style = entry
         .image_url
@@ -328,12 +353,16 @@ fn ContinueCard(entry: ContinueEntry) -> Element {
                     if on_hold {
                         span { class: "home-status-chip", "{i18n_text.status_on_hold}" }
                     }
-                    if let Some((done, total)) = progress {
+                    if bar.is_some() || entry.count.is_some() {
                         div { class: "home-continue-progress",
-                            div { class: "home-check-bar home-continue-bar",
-                                div { class: "home-check-bar-fill", width: "{done * 100 / total}%" }
+                            if let Some(percent) = bar {
+                                div { class: "home-check-bar home-continue-bar",
+                                    div { class: "home-check-bar-fill", width: "{percent}%" }
+                                }
                             }
-                            span { class: "home-continue-count", {(i18n_text.progress_count)(done, total)} }
+                            if let Some(count) = &entry.count {
+                                span { class: "home-continue-count", "{count}" }
+                            }
                         }
                     }
                     if let Some(next_line) = &entry.next_line {
