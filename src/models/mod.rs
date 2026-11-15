@@ -4,10 +4,12 @@ mod user;
 mod source;
 mod theme;
 mod theme_image;
+mod layout;
 
 pub use item::{Item, ItemOrientation, ItemPlacement, ItemStatus, ItemType, ItemInfoField, ProgressNode, ProgressNodeKind, ProgressLink, WorkStatus, ItemTab, ImportedFrom};
 pub use category::{Category, Subcategory};
 pub use user::{AvatarCrop, User};
+pub use layout::{Layout, MenuPosition};
 pub use theme::{
     deserialize_saved_themes, file_slug, normalize_hex, split_alpha, with_alpha, EmbeddedImage, ImportReport, SavedTheme, Theme,
     ThemeChoice, ThemeColor, ThemePreset,

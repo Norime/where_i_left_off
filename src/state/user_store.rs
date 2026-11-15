@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::auth::hash_password;
-use crate::models::{AvatarCrop, SavedTheme, Theme, ThemeChoice, ThemeColor, ThemePreset, User};
+use crate::models::{AvatarCrop, Layout, SavedTheme, Theme, ThemeChoice, ThemeColor, ThemePreset, User};
 use crate::i18n::Language;
 
 /// Le nom d'utilisateur est déjà pris par un autre compte.
@@ -42,6 +42,7 @@ impl UserStore {
             language,
             theme_choice: ThemeChoice::default(),
             saved_themes: Vec::new(),
+            layout: Layout::default(),
             legacy_theme: None,
         });
         Ok(id)
@@ -135,6 +136,13 @@ impl UserStore {
 
     fn user_mut(&mut self, user_id: usize) -> Option<&mut User> {
         self.users.iter_mut().find(|u| u.id == user_id)
+    }
+
+    /// Change la mise en page du compte (appliquée immédiatement).
+    pub fn set_layout(&mut self, user_id: usize, layout: Layout) {
+        if let Some(user) = self.user_mut(user_id) {
+            user.layout = layout;
+        }
     }
 
     /// Choisit le thème de l'interface (appliqué immédiatement).

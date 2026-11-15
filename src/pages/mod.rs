@@ -4,6 +4,7 @@ mod item_detail;
 mod auth_screen;
 mod profile;
 mod theme_settings;
+mod layout_settings;
 
 pub use home::Home;
 pub use category_view::CategoryView;

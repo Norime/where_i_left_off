@@ -4,6 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
+use crate::models::layout::Layout;
 use crate::models::theme_image::{
     blur_from_value, detect_image_type, fit_from_value, opacity_from_value, ImageFit, ThemeImage, ThemeImageSlot, MAX_IMAGE_BYTES,
 };
@@ -175,12 +176,14 @@ pub struct EmbeddedImage {
     pub bytes: Vec<u8>,
 }
 
-/// Résultat d'un import réussi. `name` vaut `None` si le fichier n'en a pas.
+/// Résultat d'un import réussi. `name` vaut `None` si le fichier n'en a
+/// pas, `layout` s'il a été exporté sans la mise en page.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportedTheme {
     pub name: Option<String>,
     pub theme: Theme,
     pub images: Vec<EmbeddedImage>,
+    pub layout: Option<Layout>,
     pub report: ImportReport,
 }
 
@@ -281,8 +284,9 @@ impl Theme {
     /// le fichier reste identique même si les défauts changent) et les
     /// images fournies dans `image_bytes` (clé de zone →
     /// contenu), encodées en base64. Une image sans contenu n'est pas
-    /// exportée : passer une map vide exporte le thème sans images.
-    pub fn export_json(&self, name: &str, image_bytes: &BTreeMap<String, Vec<u8>>) -> String {
+    /// exportée : passer une map vide exporte le thème sans images. La mise
+    /// en page du compte n'est ajoutée que si elle est fournie.
+    pub fn export_json(&self, name: &str, image_bytes: &BTreeMap<String, Vec<u8>>, layout: Option<&Layout>) -> String {
         let colors: Map<String, Value> = ThemeColor::ALL
             .iter()
             .map(|color| (color.key().to_string(), Value::String(self.get(*color))))
@@ -313,6 +317,9 @@ impl Theme {
         });
         if !images.is_empty() {
             file["images"] = Value::Object(images);
+        }
+        if let Some(layout) = layout {
+            file["layout"] = layout.to_value();
         }
         serde_json::to_string_pretty(&file).unwrap_or_default()
     }
@@ -356,7 +363,8 @@ impl Theme {
                 }
             }
         }
-        Ok(ImportedTheme { name, theme, images, report })
+        let layout = value.get("layout").filter(|v| v.is_object()).map(Layout::from_value);
+        Ok(ImportedTheme { name, theme, images, layout, report })
     }
 
     fn from_colors_value(value: &Value) -> (Theme, ImportReport) {
@@ -610,10 +618,22 @@ mod tests {
     #[test]
     fn export_then_import_round_trips() {
         let theme = ThemePreset::Forest.theme();
-        let imported = Theme::import_json(&theme.export_json("Forêt", &BTreeMap::new())).unwrap();
+        let imported = Theme::import_json(&theme.export_json("Forêt", &BTreeMap::new(), None)).unwrap();
         assert!(imported.theme.same_colors(&theme));
         assert!(imported.report.ignored.is_empty());
         assert_eq!(imported.name.as_deref(), Some("Forêt"));
+    }
+
+    #[test]
+    fn layout_is_exported_only_when_asked() {
+        use crate::models::MenuPosition;
+        let theme = ThemePreset::Forest.theme();
+        let layout = Layout { menu_position: MenuPosition::Right };
+        let with = Theme::import_json(&theme.export_json("x", &BTreeMap::new(), Some(&layout))).unwrap();
+        assert_eq!(with.layout, Some(layout));
+        assert!(with.report.ignored.is_empty());
+        let without = Theme::import_json(&theme.export_json("x", &BTreeMap::new(), None)).unwrap();
+        assert_eq!(without.layout, None);
     }
 
     #[test]
@@ -676,12 +696,12 @@ mod tests {
         let mut bytes = BTreeMap::new();
         bytes.insert("category".to_string(), gif.clone());
 
-        let with = Theme::import_json(&theme.export_json("x", &bytes)).unwrap();
+        let with = Theme::import_json(&theme.export_json("x", &bytes, None)).unwrap();
         assert_eq!(with.images.len(), 1);
         assert_eq!(with.images[0].bytes, gif);
         assert_eq!(with.images[0].blur, 8);
 
-        let without = Theme::import_json(&theme.export_json("x", &BTreeMap::new())).unwrap();
+        let without = Theme::import_json(&theme.export_json("x", &BTreeMap::new(), None)).unwrap();
         assert!(without.images.is_empty());
     }
 

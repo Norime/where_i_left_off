@@ -33,6 +33,18 @@ body {
     overflow: hidden;
 }
 
+/* Enveloppe de l'application une fois connecté : ne porte que les classes
+   de mise en page du compte (voir `models/layout.rs`), sans boîte à elle. */
+.app-layout {
+    display: contents;
+}
+
+/* Menu à droite : l'application et les réglages du compte. */
+.layout-menu-right .app-shell,
+.layout-menu-right .profile-shell {
+    flex-direction: row-reverse;
+}
+
 .main-content {
     flex: 1;
     min-width: 0;

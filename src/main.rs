@@ -116,9 +116,18 @@ fn App() -> Element {
     });
     let image_data_css = image_css().0;
 
+    // Mise en page du compte connecté : des classes sur l'enveloppe de
+    // l'application, utilisées par les feuilles de style (position du
+    // menu…).
+    let layout_class = session()
+        .and_then(|id| user_store.read().users.iter().find(|u| u.id == id).map(|u| u.layout.root_class()))
+        .unwrap_or_default();
+
     let content = match session() {
         Some(user_id) => rsx! {
-            AuthenticatedApp { user_id }
+            div { class: "{layout_class}",
+                AuthenticatedApp { user_id }
+            }
         },
         None => rsx! {
             AuthScreen {}

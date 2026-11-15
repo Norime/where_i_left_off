@@ -1,4 +1,5 @@
-/* Réglages du compte : menu à gauche, section choisie à droite. */
+/* Réglages du compte : le menu (à gauche, ou à droite selon la mise en
+   page, voir `base.css`) et la section choisie à côté. */
 .profile-shell {
     display: flex;
     height: 100vh;
@@ -274,6 +275,22 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
+}
+
+/* Aperçu d'une position du menu (Apparence › Mise en page), aux couleurs
+   du thème. */
+.layout-preview--menu-right {
+    flex-direction: row-reverse;
+}
+
+.layout-preview-menu {
+    width: 28px;
+    background: var(--menu-bg);
+}
+
+.layout-preview-page {
+    flex: 1;
+    background: var(--page-bg);
 }
 
 /* Import : label stylé en bouton, le champ fichier natif est caché. */

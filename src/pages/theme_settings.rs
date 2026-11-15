@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 use crate::components::{use_toasts, DeleteButton, Modal, UrlImageButton};
 use crate::i18n::{use_texts, Texts};
 use crate::models::{
-    file_slug, normalize_hex, split_alpha, with_alpha, ImageFit, ImportReport, SavedTheme, Theme, ThemeChoice, ThemeColor,
+    file_slug, normalize_hex, split_alpha, with_alpha, ImageFit, ImportReport, Layout, SavedTheme, Theme, ThemeChoice, ThemeColor,
     ThemeImage, ThemeImageSlot, ThemePreset, User, MAX_IMAGE_BLUR, MAX_IMAGE_BYTES,
 };
 use crate::persistence::{self, MediaError};
@@ -57,13 +57,21 @@ pub fn ThemeSection(user: User) -> Element {
                 .unwrap_or_else(|| i18n_text.imported_theme_default.to_string());
             let mut theme = imported.theme;
             let mut report = imported.report;
+            let layout = imported.layout;
             // Image valide mais impossible à écrire sur le disque : comptée
             // comme ignorée, le reste du thème est quand même importé.
             let failed = persistence::save_imported_images(user_id, &mut theme, imported.images);
             report.images_applied -= failed;
             report.images_ignored.extend(std::iter::repeat_n("?".to_string(), failed));
             user_store.write().add_saved_theme(user_id, name.clone(), theme);
-            toasts.success(import_summary(i18n_text, &name, &report));
+            // Mise en page exportée avec le thème : remplace celle du compte.
+            let mut summary = import_summary(i18n_text, &name, &report);
+            if let Some(layout) = layout {
+                user_store.write().set_layout(user_id, layout);
+                summary.push(' ');
+                summary.push_str(i18n_text.theme_import_layout);
+            }
+            toasts.success(summary);
         });
     };
 
@@ -133,7 +141,7 @@ pub fn ThemeSection(user: User) -> Element {
         }
 
         if let (true, Some(saved)) = (exporting(), active_saved.clone()) {
-            ExportThemeModal { user_id, saved, onclose: move |_| exporting.set(false) }
+            ExportThemeModal { user_id, saved, layout: user.layout, onclose: move |_| exporting.set(false) }
         }
 
         match active_saved {
@@ -188,13 +196,15 @@ fn ThemePreview(theme: Theme) -> Element {
     }
 }
 
-/// Export du thème perso choisi, sous son nom, avec ou sans ses images.
+/// Export du thème perso choisi, sous son nom, avec ou sans ses images, et
+/// au choix avec la mise en page du compte (`layout`).
 #[component]
-fn ExportThemeModal(user_id: usize, saved: SavedTheme, onclose: EventHandler<()>) -> Element {
+fn ExportThemeModal(user_id: usize, saved: SavedTheme, layout: Layout, onclose: EventHandler<()>) -> Element {
     let i18n_text = use_texts();
     let mut toasts = use_toasts();
     let has_images = !saved.theme.images().is_empty();
     let mut include_images = use_signal(|| has_images);
+    let mut include_layout = use_signal(|| false);
     let images_size = (i18n_text.file_size)(persistence::media_size(user_id, &saved.theme));
 
     let title = (i18n_text.export_title)(&saved.name);
@@ -205,7 +215,7 @@ fn ExportThemeModal(user_id: usize, saved: SavedTheme, onclose: EventHandler<()>
         } else {
             Default::default()
         };
-        let result = persistence::export_theme(&file_slug(&saved.name), &saved.theme.export_json(&saved.name, &images));
+        let result = persistence::export_theme(&file_slug(&saved.name), &saved.theme.export_json(&saved.name, &images, include_layout().then_some(&layout)));
         match result {
             Ok(path) => toasts.success((i18n_text.theme_exported)(&path.display().to_string())),
             Err(error) => toasts.error((i18n_text.theme_export_failed)(&error.to_string())),
@@ -229,6 +239,15 @@ fn ExportThemeModal(user_id: usize, saved: SavedTheme, onclose: EventHandler<()>
             } else {
                 p { class: "profile-hint", "{i18n_text.export_no_images}" }
             }
+            label { class: "theme-export-option",
+                input {
+                    r#type: "checkbox",
+                    checked: include_layout(),
+                    onchange: move |e| include_layout.set(e.checked()),
+                }
+                "{i18n_text.export_include_layout}"
+            }
+            p { class: "profile-hint", "{i18n_text.export_layout_hint}" }
             div { class: "modal-actions",
                 button { r#type: "button", onclick: move |_| onclose.call(()), "{i18n_text.cancel}" }
                 button { r#type: "button", class: "primary-btn", onclick: export, "{i18n_text.export_theme}" }

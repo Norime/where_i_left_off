@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::net::SearchError;
 use crate::persistence::MediaError;
-use crate::models::{ImageFit, ThemeColor, ThemeImageSlot, ThemePreset};
+use crate::models::{ImageFit, MenuPosition, ThemeColor, ThemeImageSlot, ThemePreset};
 use crate::state::UserStore;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -231,6 +231,15 @@ pub struct Texts {
     pub export_no_images: &'static str,
     pub theme_import_images: fn(usize) -> String,
     pub theme_import_images_ignored: fn(usize) -> String,
+    pub export_include_layout: &'static str,
+    pub export_layout_hint: &'static str,
+    pub theme_import_layout: &'static str,
+    pub layout: &'static str,
+    pub layout_hint: &'static str,
+    pub layout_menu_title: &'static str,
+    pub layout_menu_hint: &'static str,
+    pub menu_position_left: &'static str,
+    pub menu_position_right: &'static str,
     pub file_size: fn(u64) -> String,
     pub account_not_found: &'static str,
     pub has_password_hint: &'static str,
@@ -428,6 +437,13 @@ impl Texts {
             ThemePreset::Light => self.theme_preset_light,
             ThemePreset::Forest => self.theme_preset_forest,
             ThemePreset::Dusk => self.theme_preset_dusk,
+        }
+    }
+
+    pub fn menu_position_label(&self, position: MenuPosition) -> &'static str {
+        match position {
+            MenuPosition::Left => self.menu_position_left,
+            MenuPosition::Right => self.menu_position_right,
         }
     }
 

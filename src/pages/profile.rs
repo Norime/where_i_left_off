@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use crate::components::{AvatarCropModal, AvatarImage, LanguageSelect, UrlImageButton};
 use crate::i18n::use_texts;
 use crate::models::{User, MAX_IMAGE_BYTES};
+use crate::pages::layout_settings::LayoutSection;
 use crate::pages::theme_settings::ThemeSection;
 use crate::persistence::{self, MediaError, ProfileImage};
 use crate::state::UserStore;
@@ -12,12 +13,13 @@ enum ProfileSection {
     AccountInfo,
     Password,
     Theme,
+    Layout,
     ProfileImages,
 }
 
-/// Page de réglages du compte connecté, en plein écran : un menu à gauche
-/// (groupes « Compte » et « Apparence », puis la déconnexion) et le contenu
-/// de la section choisie à droite.
+/// Page de réglages du compte connecté, en plein écran : un menu (groupes
+/// « Compte » et « Apparence », puis la déconnexion), du côté choisi dans
+/// la mise en page, et le contenu de la section choisie à côté.
 #[component]
 pub fn Profile() -> Element {
     let i18n_text = use_texts();
@@ -51,6 +53,7 @@ pub fn Profile() -> Element {
                 {menu_entry(ProfileSection::Password, i18n_text.password)}
                 h2 { class: "profile-menu-title", "{i18n_text.appearance}" }
                 {menu_entry(ProfileSection::Theme, i18n_text.theme)}
+                {menu_entry(ProfileSection::Layout, i18n_text.layout)}
                 {menu_entry(ProfileSection::ProfileImages, i18n_text.profile_images)}
                 button {
                     class: "profile-menu-logout",
@@ -72,6 +75,9 @@ pub fn Profile() -> Element {
                         },
                         ProfileSection::Theme => rsx! {
                             ThemeSection { key: "{user.id}", user }
+                        },
+                        ProfileSection::Layout => rsx! {
+                            LayoutSection { key: "{user.id}", user }
                         },
                         ProfileSection::ProfileImages => rsx! {
                             ProfileImagesSection { key: "{user.id}", user }

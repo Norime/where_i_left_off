@@ -1,7 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use crate::i18n::Language;
-use crate::models::{deserialize_saved_themes, SavedTheme, Theme, ThemeChoice};
+use crate::models::{deserialize_saved_themes, Layout, SavedTheme, Theme, ThemeChoice};
 
 /// Un compte utilisateur local. `password_hash` vaut `None` si le compte
 /// n'est pas protégé par mot de passe. `avatar_file` est l'image de profil
@@ -31,6 +31,9 @@ pub struct User {
     pub theme_choice: ThemeChoice,
     #[serde(default, deserialize_with = "deserialize_saved_themes")]
     pub saved_themes: Vec<SavedTheme>,
+    /// Mise en page (position du menu…), indépendante du thème.
+    #[serde(default)]
+    pub layout: Layout,
     /// Anciennes couleurs enregistrées directement dans le compte (avant
     /// les thèmes perso) : lues une fois puis converties par
     /// `UserStore::migrate`, jamais réécrites.
