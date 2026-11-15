@@ -159,6 +159,20 @@
     color: var(--menu-text);
 }
 
+/* Dans le menu, le bouton n'apparaît qu'au survol de sa catégorie ou
+   sous-catégorie (ou au clavier). Masqué avec `visibility` et non
+   `display` : sa place reste réservée, le texte ne bouge pas. */
+.category-header .settings-btn,
+.subcategory-item .settings-btn {
+    visibility: hidden;
+}
+
+.category-header:hover .settings-btn,
+.subcategory-item:hover .settings-btn,
+.settings-btn:focus-visible {
+    visibility: visible;
+}
+
 /* Modale de configuration (rendue dans la sidebar mais sur fond blanc). */
 .category-settings .translation-list {
     border: 1px solid #ddd;
