@@ -38,6 +38,7 @@ impl UserStore {
             avatar_url: None,
             avatar_file: None,
             avatar_crop: Default::default(),
+            login_background: None,
             language,
             theme_choice: ThemeChoice::default(),
             saved_themes: Vec::new(),
@@ -69,13 +70,21 @@ impl UserStore {
     }
 
     /// Change (ou retire, avec `None`) l'icône d'un compte : nom du fichier
-    /// copié par `persistence::save_avatar`. Remplace l'ancienne icône par
+    /// copié par `persistence::save_profile_image`. Remplace l'ancienne icône par
     /// URL ; le cadrage repart du centre.
     pub fn set_avatar_file(&mut self, user_id: usize, file: Option<String>) {
         if let Some(user) = self.users.iter_mut().find(|u| u.id == user_id) {
             user.avatar_file = file;
             user.avatar_url = None;
             user.avatar_crop = AvatarCrop::default();
+        }
+    }
+
+    /// Change (ou retire, avec `None`) le fond de l'écran de connexion du
+    /// profil : nom du fichier copié par `persistence::save_profile_image`.
+    pub fn set_login_background(&mut self, user_id: usize, file: Option<String>) {
+        if let Some(user) = self.users.iter_mut().find(|u| u.id == user_id) {
+            user.login_background = file;
         }
     }
 

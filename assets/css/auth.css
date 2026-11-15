@@ -1,85 +1,220 @@
-.auth-screen {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    background: #f4f4f8;
-}
-
-.auth-box {
-    background: var(--surface);
-    padding: 2rem;
-    border-radius: 8px;
-    width: 320px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-}
-
-.auth-hint {
-    color: color-mix(in srgb, var(--text) 60%, transparent);
-    font-size: 0.9rem;
-}
-
 .auth-error {
     color: var(--danger);
     font-size: 0.85rem;
 }
 
-.account-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.2rem;
-    margin: 1rem 0 1.5rem;
+/* Écran de connexion, sur le principe d'un choix de personnage : le fond
+   du profil survolé en plein écran, les profils alignés au centre. */
+.login-screen {
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
+    color: white;
 }
 
-.account-tile {
+/* Fond de l'écran : couleur sous les calques, visible au tout premier
+   affichage le temps que le premier fond apparaisse. */
+.login-screen {
+    background: #1e1e2f;
+}
+
+/* Fond d'un profil : un calque par changement, posé au-dessus des
+   précédents, qui apparaît en fondu avec un léger zoom arrière. L'ancien
+   fond reste visible en dessous jusqu'à être recouvert. */
+.login-background {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    animation: login-background-in 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes login-background-in {
+    from {
+        opacity: 0;
+        transform: scale(1.04);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Profil sans fond : dégradé neutre. */
+.login-background--empty {
+    background-image: linear-gradient(160deg, #1e1e2f 0%, #3a3a5c 55%, #2a5f68 100%);
+}
+
+/* Assombrit la bande des profils (autour de 62,5 % de la hauteur) et un peu
+   le haut (titre) pour que le texte reste lisible sur n'importe quelle
+   image. */
+.login-shade {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(to bottom, transparent 35%, rgba(0, 0, 0, 0.5) 52%, rgba(0, 0, 0, 0.5) 73%, transparent 90%),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, transparent 18%);
+    pointer-events: none;
+}
+
+.login-title {
+    position: absolute;
+    top: 1.2rem;
+    left: 1.6rem;
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.auth-language-switch {
+    z-index: 1;
+}
+
+/* Nom du profil survolé et rangée de profils, centrés à 62,5 % de la
+   hauteur de l'écran, entre le milieu et les 3/4 (bande de 50 % à 75 %).
+   Placé avec `top` et non
+   `transform`, qui enfermerait les fenêtres ouvertes depuis les tuiles. */
+.login-center {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 25%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 90px;
+    justify-content: center;
+    gap: 1.4rem;
+    padding: 0 1rem;
+}
+
+/* Hauteur de la bande fixe : le contenu garde sa taille et déborde au
+   besoin de part et d'autre, plutôt que les profils soient écrasés. */
+.login-center > * {
+    flex-shrink: 0;
+}
+
+.login-focus {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
     text-align: center;
 }
 
-.account-avatar {
-    position: relative;
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background-color: #c9c9c9;
-    background-size: cover;
-    background-position: center;
+.login-focus-name {
+    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    font-weight: 700;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+
+.login-focus-lock {
+    margin-left: 0.5rem;
+    font-size: 0.6em;
+    vertical-align: middle;
+}
+
+/* Sous les profils, hauteur fixe même vide : rien ne bouge quand le
+   message apparaît ou disparaît. */
+.login-focus-hint {
+    min-height: 1.3em;
+    margin-top: -0.6rem;
+    font-size: 0.85rem;
+    opacity: 0.75;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.login-empty {
+    margin: 0;
+    font-size: 1rem;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+/* Rangée de profils : portraits carrés, défilement horizontal s'il y en a
+   trop pour la largeur. */
+.profile-row {
+    display: flex;
+    gap: 1.1rem;
+    max-width: 100%;
+    align-items: flex-start;
+    overflow-x: auto;
+    padding: 0.6rem 0.5rem 0.5rem;
+}
+
+.profile-tile {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    width: 126px;
     cursor: pointer;
-    border: 2px solid transparent;
 }
 
-.account-avatar:hover {
-    border-color: var(--primary);
+.profile-portrait {
+    position: relative;
+    top: 0;
+    flex-shrink: 0;
+    width: 126px;
+    height: 126px;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 255, 255, 0.28);
+    background: rgba(20, 20, 30, 0.55);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: top 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
-.account-avatar--add {
-    background: none;
-    border: 2px dashed #aaa;
+/* Portrait carré : l'image cadrée suit l'arrondi du cadre. */
+.profile-portrait .avatar-clip {
+    border-radius: 4px;
+}
+
+/* Soulevé avec `top` et non `transform` : un `transform` enfermerait dans
+   la tuile la fenêtre de confirmation de suppression qui s'y ouvre. */
+.profile-tile:hover .profile-portrait {
+    top: -4px;
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+.profile-tile--selected .profile-portrait,
+.profile-tile--selected:hover .profile-portrait {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent), 0 0 18px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.profile-tile-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.profile-tile--selected .profile-tile-name {
+    font-weight: 700;
+}
+
+/* Tuile « + ». */
+.profile-tile--add .profile-portrait {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: color-mix(in srgb, var(--text) 60%, transparent);
+    border-style: dashed;
+    background: rgba(20, 20, 30, 0.35);
 }
 
-.account-avatar--add .add-icon {
-    font-size: 1.8rem;
-}
-
-.account-name {
-    margin-top: 0.5rem;
-    font-size: 0.85rem;
-    color: color-mix(in srgb, var(--text) 85%, transparent);
-    cursor: pointer;
-    word-break: break-word;
+.profile-tile--add .add-icon {
+    font-size: 3rem;
+    opacity: 0.8;
 }
 
 .password-badge {
     position: absolute;
-    bottom: -4px;
-    right: -2px;
+    bottom: -6px;
+    right: -6px;
     background: #f1c40f;
     border-radius: 50%;
     width: 22px;
@@ -91,14 +226,15 @@
     border: 2px solid white;
 }
 
-.account-avatar .delete-btn {
+/* Suppression d'un profil : visible au survol du portrait. */
+.profile-portrait .delete-btn {
     position: absolute;
-    top: -6px;
-    right: -6px;
+    top: -8px;
+    right: -8px;
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
     color: white;
     display: flex;
     align-items: center;
@@ -108,6 +244,6 @@
     transition: opacity 0.15s;
 }
 
-.account-avatar:hover .delete-btn {
+.profile-portrait:hover .delete-btn {
     opacity: 1;
 }

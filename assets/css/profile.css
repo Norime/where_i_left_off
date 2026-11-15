@@ -722,3 +722,15 @@
 .icon-card-remove {
     margin-top: auto;
 }
+
+/* Aperçu du fond de connexion : format écran (16/9). */
+.login-background-preview {
+    width: 14rem;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 6px;
+    background-color: #c9c9c9;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}

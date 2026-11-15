@@ -21,6 +21,10 @@ pub struct User {
     /// Partie de l'icône affichée dans le cercle.
     #[serde(default)]
     pub avatar_crop: AvatarCrop,
+    /// Fond de l'écran de connexion quand ce profil est survolé ou choisi
+    /// (fichier copié dans le dossier du compte).
+    #[serde(default)]
+    pub login_background: Option<String>,
     #[serde(default)]
     pub language: Language,
     #[serde(default)]

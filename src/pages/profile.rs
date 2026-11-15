@@ -3,7 +3,7 @@ use crate::components::{AvatarCropModal, AvatarImage, LanguageSelect, UrlImageBu
 use crate::i18n::use_texts;
 use crate::models::{User, MAX_IMAGE_BYTES};
 use crate::pages::theme_settings::ThemeSection;
-use crate::persistence::{self, MediaError};
+use crate::persistence::{self, MediaError, ProfileImage};
 use crate::state::UserStore;
 
 /// Section affichée à droite du menu des réglages.
@@ -12,7 +12,7 @@ enum ProfileSection {
     AccountInfo,
     Password,
     Theme,
-    Icon,
+    ProfileImages,
 }
 
 /// Page de réglages du compte connecté, en plein écran : un menu à gauche
@@ -51,7 +51,7 @@ pub fn Profile() -> Element {
                 {menu_entry(ProfileSection::Password, i18n_text.password)}
                 h2 { class: "profile-menu-title", "{i18n_text.appearance}" }
                 {menu_entry(ProfileSection::Theme, i18n_text.theme)}
-                {menu_entry(ProfileSection::Icon, i18n_text.icon)}
+                {menu_entry(ProfileSection::ProfileImages, i18n_text.profile_images)}
                 button {
                     class: "profile-menu-logout",
                     onclick: move |_| session.set(None),
@@ -73,8 +73,8 @@ pub fn Profile() -> Element {
                         ProfileSection::Theme => rsx! {
                             ThemeSection { key: "{user.id}", user }
                         },
-                        ProfileSection::Icon => rsx! {
-                            IconSection { key: "{user.id}", user }
+                        ProfileSection::ProfileImages => rsx! {
+                            ProfileImagesSection { key: "{user.id}", user }
                         },
                     },
                 }
@@ -218,11 +218,26 @@ fn PasswordSection(user: User) -> Element {
     }
 }
 
-/// Icône : image de profil du compte (affichée sur l'écran de connexion),
-/// choisie parmi les fichiers de l'ordinateur et copiée dans le dossier du
-/// compte.
+/// Profil : images propres au compte, chacune copiée dans son dossier
+/// (fichier choisi ou téléchargée une fois depuis une URL) — l'icône et le
+/// fond de l'écran de connexion.
 #[component]
-fn IconSection(user: User) -> Element {
+fn ProfileImagesSection(user: User) -> Element {
+    let i18n_text = use_texts();
+    rsx! {
+        h1 { "{i18n_text.profile_images}" }
+        p { class: "profile-hint", "{i18n_text.profile_images_hint}" }
+        h2 { "{i18n_text.avatar_title}" }
+        AvatarCard { user: user.clone() }
+        h2 { "{i18n_text.login_background_title}" }
+        p { class: "profile-hint", "{i18n_text.login_background_hint}" }
+        LoginBackgroundCard { user }
+    }
+}
+
+/// Icône : affichée sur l'écran de connexion, cadrée dans son cercle.
+#[component]
+fn AvatarCard(user: User) -> Element {
     let i18n_text = use_texts();
     let mut user_store = use_context::<Signal<UserStore>>();
     let mut error = use_signal(|| None::<String>);
@@ -235,7 +250,7 @@ fn IconSection(user: User) -> Element {
 
     // Copie l'image (fichier choisi ou téléchargée depuis une URL) dans le
     // dossier du compte.
-    let mut apply = move |bytes: Vec<u8>| match persistence::save_avatar(user_id, &bytes) {
+    let mut apply = move |bytes: Vec<u8>| match persistence::save_profile_image(user_id, ProfileImage::Avatar, &bytes) {
         Ok(name) => {
             user_store.write().set_avatar_file(user_id, Some(name));
             error.set(None);
@@ -260,8 +275,6 @@ fn IconSection(user: User) -> Element {
     };
 
     rsx! {
-        h1 { "{i18n_text.icon}" }
-        p { class: "profile-hint", "{i18n_text.icon_hint}" }
         // Carte : l'icône et son recadrage à gauche, le choix d'une nouvelle
         // image à droite, la suppression à part en bas.
         div { class: "icon-card",
@@ -297,7 +310,7 @@ fn IconSection(user: User) -> Element {
                         class: "theme-remove-btn icon-card-remove",
                         onclick: move |_| {
                             user_store.write().set_avatar_file(user_id, None);
-                            persistence::remove_other_avatars(user_id, None);
+                            persistence::remove_profile_images(user_id, ProfileImage::Avatar, None);
                             error.set(None);
                         },
                         "🗑 {i18n_text.remove_image}"
@@ -317,6 +330,79 @@ fn IconSection(user: User) -> Element {
                     cropping.set(false);
                 },
                 onclose: move |_| cropping.set(false),
+            }
+        }
+    }
+}
+
+/// Fond de l'écran de connexion : affiché en plein écran quand ce profil est
+/// survolé ou choisi.
+#[component]
+fn LoginBackgroundCard(user: User) -> Element {
+    let i18n_text = use_texts();
+    let mut user_store = use_context::<Signal<UserStore>>();
+    let mut error = use_signal(|| None::<String>);
+    let user_id = user.id;
+    let has_background = user.login_background.is_some();
+    // Recalculé seulement quand le compte change (lecture du fichier).
+    let css_url = use_memo(use_reactive((&user,), |(user,)| persistence::login_background_css_url(&user)));
+    // Toujours une valeur explicite : Dioxus garderait sinon l'ancienne
+    // image (voir `AvatarCard`).
+    let preview_style = format!("background-image: {};", css_url().unwrap_or_else(|| "none".to_string()));
+
+    let mut apply = move |bytes: Vec<u8>| match persistence::save_profile_image(user_id, ProfileImage::LoginBackground, &bytes) {
+        Ok(name) => {
+            user_store.write().set_login_background(user_id, Some(name));
+            error.set(None);
+        }
+        Err(e) => error.set(Some(i18n_text.media_error(&e))),
+    };
+
+    let choose = move |event: FormEvent| {
+        let Some(file) = event.files().into_iter().next() else { return };
+        if file.size() > MAX_IMAGE_BYTES as u64 {
+            error.set(Some(i18n_text.media_error(&MediaError::TooLarge)));
+            return;
+        }
+        spawn(async move {
+            match file.read_bytes().await {
+                Ok(bytes) => apply(bytes.to_vec()),
+                Err(e) => error.set(Some(i18n_text.media_error(&MediaError::Io(e.to_string())))),
+            }
+        });
+    };
+
+    rsx! {
+        div { class: "icon-card",
+            div { class: "login-background-preview", style: "{preview_style}" }
+            div { class: "icon-card-actions",
+                span { class: "icon-card-label", "{i18n_text.new_image}" }
+                div { class: "icon-card-sources",
+                    label { class: "theme-import-btn",
+                        "📁 {i18n_text.from_file}"
+                        input {
+                            r#type: "file",
+                            accept: "image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif",
+                            onchange: choose,
+                        }
+                    }
+                    UrlImageButton { onloaded: move |bytes: Vec<u8>| apply(bytes) }
+                }
+                if has_background {
+                    button {
+                        r#type: "button",
+                        class: "theme-remove-btn icon-card-remove",
+                        onclick: move |_| {
+                            user_store.write().set_login_background(user_id, None);
+                            persistence::remove_profile_images(user_id, ProfileImage::LoginBackground, None);
+                            error.set(None);
+                        },
+                        "🗑 {i18n_text.remove_image}"
+                    }
+                }
+                if let Some(message) = error() {
+                    p { class: "auth-error", "{message}" }
+                }
             }
         }
     }

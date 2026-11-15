@@ -39,7 +39,6 @@
 }
 
 /* Sélecteur en haut à droite de l'écran de connexion */
-.auth-screen { position: relative; }
 .auth-language-switch { position: absolute; top: 1rem; right: 1rem; }
 .auth-language-switch .language-select-menu { left: auto; right: 0; }
 
