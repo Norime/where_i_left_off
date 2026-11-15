@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
 use crate::models::theme_image::{
-    detect_image_type, fit_from_value, opacity_from_value, ImageFit, ThemeImage, ThemeImageSlot, MAX_IMAGE_BYTES,
+    blur_from_value, detect_image_type, fit_from_value, opacity_from_value, ImageFit, ThemeImage, ThemeImageSlot, MAX_IMAGE_BYTES,
 };
 
 /// Une couleur modifiable du thème. Pour en ajouter une : un variant, une
@@ -119,14 +119,15 @@ impl ThemeColor {
 }
 
 /// Apparence choisie par un compte : couleurs (`#rrggbb` ou `#rrggbbaa`
-/// avec transparence) rangées par clé, images de fond, et flou « verre »
-/// derrière les cartes. Une couleur absente prend sa valeur par défaut : un
+/// avec transparence) rangées par clé et images de fond. (L'ancien « effet
+/// verre », `glass_blur`, est ignoré à la lecture : WebKitGTK ne dessine pas
+/// `backdrop-filter` sans accélération graphique ; il est remplacé par le
+/// flou de chaque image.) Une couleur absente prend sa valeur par défaut : un
 /// thème enregistré avant l'ajout d'une couleur reste donc valide.
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 pub struct Theme {
     colors: BTreeMap<String, String>,
     images: BTreeMap<String, ThemeImage>,
-    glass_blur: u8,
 }
 
 /// Chargement tolérant depuis `users.json` : une valeur invalide ou une clé
@@ -136,7 +137,6 @@ impl<'de> Deserialize<'de> for Theme {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = Value::deserialize(deserializer)?;
         let mut theme = Theme::from_colors_value(colors_object(&value).unwrap_or(&Value::Null)).0;
-        theme.glass_blur = glass_blur_from_value(&value);
         if let Some(images) = value.get("images").and_then(Value::as_object) {
             for (key, raw) in images {
                 if let (Some(slot), Some(image)) = (ThemeImageSlot::from_key(key), ThemeImage::from_value(raw)) {
@@ -171,6 +171,7 @@ pub struct EmbeddedImage {
     pub slot: ThemeImageSlot,
     pub fit: ImageFit,
     pub opacity: u8,
+    pub blur: u8,
     pub bytes: Vec<u8>,
 }
 
@@ -188,8 +189,6 @@ pub struct ImportedTheme {
 pub struct InvalidThemeFile;
 
 const EXPORT_FORMAT: &str = "where_i_left_off-theme";
-/// Flou maximal de l'effet verre, en pixels.
-pub const MAX_GLASS_BLUR: u8 = 20;
 
 /// Les couleurs d'un thème : l'objet `colors`, ou le thème entier pour
 /// l'ancien format à plat.
@@ -201,9 +200,6 @@ fn colors_object(value: &Value) -> Option<&Value> {
     }
 }
 
-fn glass_blur_from_value(value: &Value) -> u8 {
-    value.get("glass_blur").and_then(Value::as_u64).map(|v| v.min(MAX_GLASS_BLUR as u64) as u8).unwrap_or(0)
-}
 
 impl Theme {
     /// Valeur effective d'une couleur : celle choisie, sinon sa valeur par
@@ -249,14 +245,6 @@ impl Theme {
         ThemeImageSlot::ALL.iter().filter_map(|slot| self.image(*slot).map(|image| (*slot, image))).collect()
     }
 
-    pub fn glass_blur(&self) -> u8 {
-        self.glass_blur
-    }
-
-    pub fn set_glass_blur(&mut self, blur: u8) {
-        self.glass_blur = blur.min(MAX_GLASS_BLUR);
-    }
-
     /// Construit un thème à partir de quelques couleurs, les autres gardant
     /// leur valeur par défaut (sert aux thèmes prédéfinis).
     fn from_pairs(pairs: &[(ThemeColor, &str)]) -> Theme {
@@ -273,8 +261,8 @@ impl Theme {
     }
 
     /// Feuille de style du thème, sauf le contenu des images (voir
-    /// `ThemeImageSlot::css_variable`) : variables de couleur, règles des
-    /// images de fond et effet verre.
+    /// `ThemeImageSlot::css_variable`) : variables de couleur et règles des
+    /// images de fond.
     pub fn css(&self) -> String {
         let declarations: String = ThemeColor::ALL
             .iter()
@@ -285,31 +273,13 @@ impl Theme {
             css.push_str(&image.css_rule(slot));
             css.push('\n');
         }
-        if self.glass_blur > 0 {
-            let blur = format!("backdrop-filter: blur({0}px); -webkit-backdrop-filter: blur({0}px);", self.glass_blur);
-            // Menu : le flou est posé sur un calque fixe derrière lui (même
-            // place, 220 px de large) et pas sur le menu lui-même, sinon
-            // `backdrop-filter` enfermerait dans le menu les fenêtres qui s'y
-            // ouvrent (configuration d'une catégorie). Le calque est peint
-            // après le fond des pages et avant le fond du menu : un menu
-            // transparent laisse voir le fond des pages flouté.
-            css.push_str(&format!(
-                ".sidebar::before, .profile-menu::before {{ content: \"\"; position: fixed; top: 0; bottom: 0; left: 0; \
-                 width: 220px; z-index: -1; pointer-events: none; {blur} }}\n"
-            ));
-            // Cartes du contenu. Pas sur les fenêtres modales, pour la même
-            // raison (la confirmation de suppression s'ouvre dans une modale).
-            css.push_str(&format!(
-                ".home-release, .catalog-card, .source-add-choice, .editor-step, .source-result-item, .app-notice {{ {blur} }}\n"
-            ));
-        }
         css
     }
 
     /// Fichier de thème à partager : un nom, un numéro de version du format,
     /// toutes les couleurs actuelles (y compris celles par défaut, pour que
-    /// le fichier reste identique même si les défauts changent), l'effet
-    /// verre, et les images fournies dans `image_bytes` (clé de zone →
+    /// le fichier reste identique même si les défauts changent) et les
+    /// images fournies dans `image_bytes` (clé de zone →
     /// contenu), encodées en base64. Une image sans contenu n'est pas
     /// exportée : passer une map vide exporte le thème sans images.
     pub fn export_json(&self, name: &str, image_bytes: &BTreeMap<String, Vec<u8>>) -> String {
@@ -328,6 +298,7 @@ impl Theme {
                     serde_json::json!({
                         "fit": image.fit.key(),
                         "opacity": image.opacity,
+                        "blur": image.blur,
                         "mime": mime,
                         "data": BASE64.encode(bytes),
                     }),
@@ -339,7 +310,6 @@ impl Theme {
             "version": 2,
             "name": name,
             "colors": colors,
-            "glass_blur": self.glass_blur,
         });
         if !images.is_empty() {
             file["images"] = Value::Object(images);
@@ -358,13 +328,11 @@ impl Theme {
             .map(|name| name.trim().to_string())
             .filter(|name| !name.is_empty());
         let colors = colors_object(&value).ok_or(InvalidThemeFile)?;
-        let (mut theme, mut report) = Theme::from_colors_value(colors);
+        let (theme, mut report) = Theme::from_colors_value(colors);
         // Pas une seule couleur reconnue : ce n'est pas un fichier de thème.
         if report.applied == 0 {
             return Err(InvalidThemeFile);
         }
-        theme.glass_blur = glass_blur_from_value(&value);
-
         let mut images = Vec::new();
         if let Some(entries) = value.get("images").and_then(Value::as_object) {
             for (key, raw) in entries {
@@ -375,7 +343,13 @@ impl Theme {
                     .filter(|bytes| bytes.len() <= MAX_IMAGE_BYTES && detect_image_type(bytes).is_some());
                 match (ThemeImageSlot::from_key(key), bytes) {
                     (Some(slot), Some(bytes)) => {
-                        images.push(EmbeddedImage { slot, fit: fit_from_value(raw), opacity: opacity_from_value(raw), bytes });
+                        images.push(EmbeddedImage {
+                            slot,
+                            fit: fit_from_value(raw),
+                            opacity: opacity_from_value(raw),
+                            blur: blur_from_value(raw),
+                            bytes,
+                        });
                         report.images_applied += 1;
                     }
                     _ => report.images_ignored.push(key.clone()),
@@ -675,6 +649,14 @@ mod tests {
     }
 
     #[test]
+    fn every_opacity_survives_the_round_trip() {
+        // Sinon le curseur sauterait d'une valeur à l'autre.
+        for opacity in 0..=100 {
+            assert_eq!(split_alpha(&with_alpha("#112233", opacity)).1, opacity);
+        }
+    }
+
+    #[test]
     fn transparency_round_trips() {
         assert_eq!(normalize_hex("#11223380").as_deref(), Some("#11223380"));
         assert_eq!(normalize_hex("#112233FF").as_deref(), Some("#112233"));
@@ -690,14 +672,14 @@ mod tests {
         let gif = b"GIF89a-contenu".to_vec();
         let mut theme = Theme::default();
         theme.set_image(ThemeImageSlot::Category, Some(ThemeImage::new("00ff.gif".into())));
-        theme.set_glass_blur(8);
+        theme.set_image(ThemeImageSlot::Category, Some(ThemeImage { blur: 8, ..ThemeImage::new("00ff.gif".into()) }));
         let mut bytes = BTreeMap::new();
         bytes.insert("category".to_string(), gif.clone());
 
         let with = Theme::import_json(&theme.export_json("x", &bytes)).unwrap();
         assert_eq!(with.images.len(), 1);
         assert_eq!(with.images[0].bytes, gif);
-        assert_eq!(with.theme.glass_blur(), 8);
+        assert_eq!(with.images[0].blur, 8);
 
         let without = Theme::import_json(&theme.export_json("x", &BTreeMap::new())).unwrap();
         assert!(without.images.is_empty());

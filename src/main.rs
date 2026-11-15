@@ -19,6 +19,7 @@ mod state;
 mod update_check;
 
 use models::{detect_image_type, ThemeImageSlot};
+use components::{use_toast_provider, ToastHost};
 use pages::AuthScreen;
 use routes::Route;
 
@@ -49,15 +50,18 @@ fn App() -> Element {
         persistence::save_users(&user_store.read());
     });
 
+    let mut toasts = use_toast_provider();
+    // Langue lue au moment d'afficher le message (elle change à la connexion).
+    let language = use_context::<Memo<i18n::Language>>();
+
     // Thème choisi qui n'existe plus (prédéfini retiré de l'application,
     // thème perso absent du fichier) : retour au thème par défaut, et
-    // message affiché par `ThemeNoticeBanner`.
-    let ThemeNoticeSignal(mut theme_notice) = use_context_provider(|| ThemeNoticeSignal(Signal::new(None)));
+    // message pour prévenir.
     use_effect(move || {
         let Some(user_id) = session() else { return };
         let missing = user_store.read().users.iter().any(|u| u.id == user_id && u.theme_missing());
         if missing && user_store.write().reset_missing_theme(user_id) {
-            theme_notice.set(Some(ThemeNotice::ThemeMissing));
+            toasts.info(language.peek().texts().theme_missing_notice);
         }
     });
 
@@ -107,7 +111,7 @@ fn App() -> Element {
     // garde sa couleur, et l'utilisateur est prévenu.
     use_effect(move || {
         if image_css().1 > 0 {
-            theme_notice.set(Some(ThemeNotice::ImageMissing));
+            toasts.info(language.peek().texts().theme_image_missing_notice);
         }
     });
     let image_data_css = image_css().0;
@@ -134,43 +138,7 @@ fn App() -> Element {
         style { {image_data_css} }
         style { {theme_css} }
         {content}
-        ThemeNoticeBanner {}
-    }
-}
-
-/// Problème de thème à signaler à l'utilisateur.
-#[derive(Clone, Copy, PartialEq)]
-enum ThemeNotice {
-    /// Le thème choisi n'existait plus : remplacé par celui par défaut.
-    ThemeMissing,
-    /// Une image du thème est introuvable : la zone garde sa couleur.
-    ImageMissing,
-}
-
-/// Message de thème en cours d'affichage (`None` : aucun).
-#[derive(Clone, Copy)]
-struct ThemeNoticeSignal(Signal<Option<ThemeNotice>>);
-
-/// Message en bas à droite, sur toutes les pages.
-#[component]
-fn ThemeNoticeBanner() -> Element {
-    let i18n_text = i18n::use_texts();
-    let ThemeNoticeSignal(mut theme_notice) = use_context::<ThemeNoticeSignal>();
-    let text = match theme_notice() {
-        None => return rsx! {},
-        Some(ThemeNotice::ThemeMissing) => i18n_text.theme_missing_notice,
-        Some(ThemeNotice::ImageMissing) => i18n_text.theme_image_missing_notice,
-    };
-    rsx! {
-        div { class: "app-notice",
-            span { "{text}" }
-            button {
-                r#type: "button",
-                title: "{i18n_text.close}",
-                onclick: move |_| theme_notice.set(None),
-                "✕"
-            }
-        }
+        ToastHost {}
     }
 }
 

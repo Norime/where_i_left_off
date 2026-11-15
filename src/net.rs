@@ -152,3 +152,46 @@ pub fn value_text(value: &Value) -> Option<String> {
         other => Some(other.to_string()),
     }
 }
+/// Erreur de téléchargement d'une image (icône, image de thème).
+#[derive(Clone, Debug, PartialEq)]
+pub enum ImageDownloadError {
+    /// L'adresse ne commence pas par `http://` ou `https://`.
+    InvalidUrl,
+    /// Impossible de joindre le site (réseau, DNS…).
+    Unreachable(String),
+    /// Le site a répondu avec un code HTTP d'erreur.
+    HttpStatus(u16),
+    /// Plus lourd que `limit` : téléchargement interrompu.
+    TooLarge,
+}
+
+/// Télécharge une image une seule fois, pour la copier ensuite dans les
+/// données de l'application (elle n'est plus jamais redemandée au site).
+/// Le contenu est lu morceau par morceau et le téléchargement s'arrête dès
+/// que `limit` octets sont dépassés. Le format n'est pas vérifié ici : c'est
+/// fait à l'enregistrement, d'après le contenu.
+pub async fn fetch_image(url: &str, limit: usize) -> Result<Vec<u8>, ImageDownloadError> {
+    let url = url.trim();
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err(ImageDownloadError::InvalidUrl);
+    }
+    let mut response = http_client()
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| ImageDownloadError::Unreachable(e.to_string()))?;
+    if !response.status().is_success() {
+        return Err(ImageDownloadError::HttpStatus(response.status().as_u16()));
+    }
+    if response.content_length().is_some_and(|len| len > limit as u64) {
+        return Err(ImageDownloadError::TooLarge);
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(|e| ImageDownloadError::Unreachable(e.to_string()))? {
+        bytes.extend_from_slice(&chunk);
+        if bytes.len() > limit {
+            return Err(ImageDownloadError::TooLarge);
+        }
+    }
+    Ok(bytes)
+}

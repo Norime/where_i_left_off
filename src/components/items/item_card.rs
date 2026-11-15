@@ -30,7 +30,8 @@ pub fn ItemCard(
     let background_style = item.image_url
         .as_ref()
         .map(|url| format!("background-image: url('{url}');"))
-        .unwrap_or_default();
+        // Valeur explicite sans image : Dioxus garderait sinon l'ancienne.
+        .unwrap_or_else(|| "background-image: none;".to_string());
 
     rsx! {
         Link {

@@ -77,7 +77,7 @@ pub fn save_imported_images(user_id: usize, theme: &mut Theme, images: Vec<Embed
     let mut failed = 0;
     for embedded in images {
         match save_media(user_id, &embedded.bytes) {
-            Ok(file) => theme.set_image(embedded.slot, Some(ThemeImage { file, fit: embedded.fit, opacity: embedded.opacity })),
+            Ok(file) => theme.set_image(embedded.slot, Some(ThemeImage { file, fit: embedded.fit, opacity: embedded.opacity, blur: embedded.blur })),
             Err(_) => failed += 1,
         }
     }

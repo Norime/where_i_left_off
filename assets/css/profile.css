@@ -77,16 +77,34 @@
 }
 
 /* Zone qui défile : toute la largeur (barre de défilement au bord de la
-   fenêtre), le contenu lui-même reste limité en largeur. */
+   fenêtre). Le contenu utilise la largeur disponible, plafonnée pour les
+   très grands écrans ; les marges se resserrent sur les petits écrans. */
 .profile-page {
     flex: 1;
     min-width: 0;
     overflow-y: auto;
-    padding: 1.5rem 2rem;
+    padding: 1.5rem clamp(1rem, 3vw, 2.5rem);
 }
 
 .profile-page > * {
-    max-width: 480px;
+    max-width: 90rem;
+}
+
+/* Les champs de saisie restent à une largeur lisible, même sur grand écran. */
+.profile-form,
+.form-field-language,
+.theme-name-field {
+    max-width: 32rem;
+}
+
+/* Éditeur de thème : colonnes d'au moins 34rem, autant que la largeur en
+   permet (2 sur un grand écran, 1 sinon). 34rem laisse aux cartes d'image
+   la place d'avoir leurs réglages à droite. */
+.theme-editor-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr));
+    gap: 0 3rem;
+    align-items: start;
 }
 
 .profile-form {
@@ -267,16 +285,22 @@
 }
 
 /* Import : label stylé en bouton, le champ fichier natif est caché. */
+/* Bouton secondaire (Importer, Choisir / Changer une image) : fond teinté
+   de la couleur principale, pour qu'il se voie sans voler la vedette au
+   bouton principal (Exporter). */
 .theme-import-btn {
-    background: none;
-    border: 1px solid #ccc;
+    background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--surface));
     border-radius: 4px;
     color: var(--text);
     cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
     padding: 0.4rem 0.9rem;
 }
 
 .theme-import-btn:hover {
+    background: color-mix(in srgb, var(--primary) 18%, var(--surface));
     border-color: var(--primary);
 }
 
@@ -326,11 +350,11 @@
     margin-bottom: 0.8rem;
 }
 
+/* « Modifier "nom" » suivi directement du bouton de suppression. */
 .theme-editor-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    gap: 0.8rem;
 }
 
 .theme-editor-delete .delete-btn {
@@ -349,13 +373,18 @@
     display: inline-block;
 }
 
-/* Titre « Thèmes importés / personnalisés » avec Importer / Exporter. */
+/* Titre « Thèmes importés / personnalisés », Importer / Exporter en
+   dessous, puis un espace avant la liste des thèmes. */
 .theme-section-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.6rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.theme-section-header h2 {
+    margin-bottom: 0;
 }
 
 .theme-section-header .primary-btn:disabled {
@@ -369,24 +398,59 @@
 }
 
 
-/* Images du thème : aperçu + choix du fichier + réglages. */
+/* Images du thème : une carte par zone, aperçu à gauche, nom et boutons
+   au milieu, réglages à droite (passent dessous si la carte est étroite). */
 .theme-image-list {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 0.6rem;
 }
 
-.theme-image-row {
+.theme-image-card {
     display: flex;
-    gap: 0.8rem;
-    align-items: flex-start;
+    align-items: stretch;
+    border: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
+    border-radius: 8px;
+    background: var(--surface);
+    /* La bande de suppression suit l'arrondi de la carte. */
+    overflow: hidden;
 }
+
+.theme-image-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem 1.2rem;
+    padding: 0.7rem;
+}
+
+/* Bande rouge sur toute la hauteur, au bord droit de la carte. */
+.theme-image-remove {
+    flex-shrink: 0;
+    width: 3.2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: var(--danger);
+    color: white;
+    cursor: pointer;
+    font-size: 1.2rem;
+}
+
+.theme-image-remove:hover {
+    filter: brightness(1.15);
+}
+
 
 .theme-image-preview {
-    width: 72px;
-    height: 48px;
+    width: 96px;
+    height: 64px;
     flex-shrink: 0;
-    border-radius: 4px;
+    border-radius: 6px;
     background-size: cover;
     background-position: center;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
@@ -396,20 +460,22 @@
     background: repeating-linear-gradient(45deg, #eee, #eee 6px, #f8f8f8 6px, #f8f8f8 12px);
 }
 
-.theme-image-body {
-    flex: 1;
+.theme-image-info {
+    flex: 1 1 8rem;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    font-size: 0.9rem;
+    gap: 0.45rem;
 }
 
-.theme-image-actions,
-.theme-image-options {
+.theme-image-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.theme-image-actions {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 0.6rem;
+    gap: 0.5rem;
 }
 
 .theme-image-actions .theme-import-btn {
@@ -417,17 +483,43 @@
     padding: 0.25rem 0.6rem;
 }
 
-.theme-image-options label {
-    display: flex;
+/* « Retirer » : rouge (couleur Suppression / erreurs du thème). */
+.theme-remove-btn {
+    background: var(--danger);
+    border: 1px solid var(--danger);
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.6rem;
+}
+
+.theme-remove-btn:hover {
+    filter: brightness(1.15);
+}
+
+/* Réglages : libellé à gauche, contrôle à droite, alignés en grille. */
+.theme-image-options {
+    /* Collés au bord droit (avant la bande de suppression). */
+    margin-left: auto;
+    display: grid;
+    grid-template-columns: auto auto;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.4rem 0.7rem;
     font-size: 0.85rem;
 }
 
 .theme-image-options select {
+    justify-self: start;
     padding: 0.2rem 0.4rem;
     border: 1px solid #ccc;
     border-radius: 4px;
+}
+
+.theme-image-error {
+    flex-basis: 100%;
+    margin: 0;
 }
 
 .theme-slider-row {
@@ -445,20 +537,7 @@
     font-size: 0.95rem;
 }
 
-.theme-import-btn {
-    background: none;
-    font-family: inherit;
-    font-size: inherit;
-}
 
-/* Avertissement (réglage sans effet visible en l'état). */
-.theme-warning {
-    margin: 0.4rem 0 0;
-    padding: 0.4rem 0.6rem;
-    border-left: 3px solid #e0a800;
-    background: color-mix(in srgb, #e0a800 12%, transparent);
-    font-size: 0.85rem;
-}
 
 /* Curseur + valeur précise (opacités, effet verre). */
 .theme-slider {
@@ -482,4 +561,60 @@
 .theme-slider-unit {
     font-size: 0.85rem;
     color: color-mix(in srgb, var(--text) 60%, transparent);
+}
+
+
+/* « Depuis une URL » : champ d'adresse + boutons, sur toute la largeur
+   des boutons d'image. */
+.url-image-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    flex-basis: 100%;
+}
+
+.url-image-form input {
+    flex: 1 1 12rem;
+    min-width: 0;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.url-image-form .primary-btn,
+.url-image-form .theme-import-btn {
+    font-size: 0.85rem;
+    padding: 0.3rem 0.7rem;
+}
+
+.url-image-error {
+    flex-basis: 100%;
+    margin: 0;
+}
+
+.profile-avatar-row .theme-image-actions {
+    flex: 1;
+}
+
+
+.theme-image-actions {
+    align-items: center;
+}
+
+/* « Depuis un fichier » / « Depuis une URL » : l'un au-dessus de l'autre,
+   même largeur. */
+.theme-image-info .theme-image-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: 13rem;
+}
+
+.theme-image-info .theme-image-actions > .theme-import-btn {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.theme-image-info .url-image-form {
+    grid-column: 1 / -1;
 }

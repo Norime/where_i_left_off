@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use crate::components::DeleteButton;
 use crate::models::User;
+use crate::persistence;
 
 /// Un compte affiché en cercle : image (grise par défaut), nom en dessous,
 /// cadenas jaune qui dépasse en bas si le compte est protégé, bouton de
@@ -9,10 +10,13 @@ use crate::models::User;
 /// de passe).
 #[component]
 pub fn AccountTile(user: User, onselect: EventHandler<()>, ondelete: EventHandler<()>) -> Element {
-    let background_style = user.avatar_url
-        .as_ref()
-        .map(|url| format!("background-image: url('{url}');"))
-        .unwrap_or_default();
+    // Toujours une valeur explicite : en mettant à jour `style`, Dioxus
+    // remet les anciennes propriétés absentes de la nouvelle valeur, une
+    // chaîne vide garderait donc l'image précédente.
+    let background_style = format!(
+        "background-image: {};",
+        persistence::avatar_css_url(&user).unwrap_or_else(|| "none".to_string())
+    );
 
     rsx! {
         div { class: "account-tile",

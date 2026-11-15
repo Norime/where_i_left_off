@@ -43,16 +43,25 @@ body {
     color: color-mix(in srgb, var(--text) 60%, transparent);
     font-style: italic;
 }
-/* Message d'information global (ex: thème introuvable). */
-.app-notice {
+/* Toasts : messages temporaires empilés en bas à droite (voir
+   `components/toast.rs`). La barre de gauche indique le type. */
+.toast-stack {
     position: fixed;
     right: 1rem;
     bottom: 1rem;
     z-index: 200;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    max-width: min(24rem, calc(100vw - 2rem));
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: flex-start;
     gap: 0.8rem;
-    max-width: 360px;
     padding: 0.7rem 0.9rem;
     border-left: 4px solid var(--accent);
     border-radius: 6px;
@@ -60,12 +69,33 @@ body {
     color: var(--text);
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
     font-size: 0.9rem;
+    pointer-events: auto;
+    animation: toast-in 0.2s ease-out;
 }
 
-.app-notice button {
+.toast--success {
+    border-left-color: var(--success);
+}
+
+.toast--error {
+    border-left-color: var(--danger);
+}
+
+.toast-message {
+    flex: 1;
+    overflow-wrap: anywhere;
+}
+
+.toast button {
     background: none;
     border: none;
     color: color-mix(in srgb, var(--text) 60%, transparent);
     cursor: pointer;
     font-size: 0.9rem;
+    padding: 0;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to { opacity: 1; transform: none; }
 }

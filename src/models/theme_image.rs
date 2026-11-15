@@ -40,21 +40,7 @@ impl ThemeImageSlot {
         format!("--theme-img-{}", self.key().replace('_', "-"))
     }
 
-    /// Éléments qui reçoivent l'image.
-    fn selector(self) -> &'static str {
-        match self {
-            // Calque fixe derrière tout le contenu plutôt que
-            // `background-attachment: fixed` sur `body` : avec ce dernier,
-            // WebKitGTK redessine le fond par morceaux pendant le défilement
-            // et un GIF animé se retrouve coupé et désynchronisé.
-            ThemeImageSlot::PageBackground => "body::before",
-            ThemeImageSlot::MenuBackground => ".sidebar, .profile-menu",
-            ThemeImageSlot::Category => ".sidebar .category-header",
-            ThemeImageSlot::Subcategory => ".sidebar .subcategory-item",
-        }
-    }
-
-    /// Couleur du voile posé sur l'image (pour garder le texte lisible).
+    /// Couleur posée sur l'image pour régler son opacité.
     fn veil_color(self) -> &'static str {
         match self {
             ThemeImageSlot::PageBackground => "var(--page-bg)",
@@ -62,18 +48,46 @@ impl ThemeImageSlot {
         }
     }
 
-    /// Règles en plus quand l'image est présente (les lignes de catégories
-    /// deviennent des tuiles pour que l'image se voie).
-    fn extra_rules(self) -> &'static str {
+    /// L'image est dessinée sur un calque `::before` derrière le contenu de
+    /// la zone, pour pouvoir la flouter (`filter`) sans flouter le texte.
+    /// Retourne `(règle de la zone, sélecteur du calque, placement du
+    /// calque)`. `margin` agrandit le calque au-delà de la zone : le flou
+    /// mélange les bords avec du vide, ce débord (rogné) évite un liseré
+    /// transparent.
+    fn layer(self, margin: u32) -> (&'static str, &'static str, String) {
         match self {
-            // Propre couche de rendu (`translateZ`) : le GIF est toujours
-            // dessiné en entier, le contenu défile simplement par-dessus.
-            ThemeImageSlot::PageBackground => {
-                "content: \"\"; position: fixed; inset: 0; z-index: -1; pointer-events: none; transform: translateZ(0); "
-            }
-            ThemeImageSlot::MenuBackground => "",
-            // Les lignes sont déjà des tuiles (voir `sidebar.css`).
-            ThemeImageSlot::Category | ThemeImageSlot::Subcategory => "",
+            // Calque fixe sur toute la fenêtre plutôt que
+            // `background-attachment: fixed` sur `body` : avec ce dernier,
+            // WebKitGTK redessine le fond par morceaux pendant le défilement
+            // et un GIF animé se retrouve coupé et désynchronisé. Sa propre
+            // couche de rendu (`translateZ`) le garde toujours entier.
+            ThemeImageSlot::PageBackground => (
+                "",
+                "body::before",
+                format!("position: fixed; inset: -{margin}px; transform: translateZ(0);"),
+            ),
+            // Menu : 220 px de large sur toute la hauteur (voir
+            // `sidebar.css`), fixe pour ne pas défiler avec les catégories.
+            // `isolation` garde le calque derrière le contenu du menu.
+            ThemeImageSlot::MenuBackground => (
+                ".sidebar, .profile-menu { isolation: isolate; }",
+                ".sidebar::before, .profile-menu::before",
+                format!(
+                    "position: fixed; top: -{margin}px; left: -{margin}px; width: calc(220px + {double}px); \
+                     height: calc(100vh + {double}px); clip-path: inset({margin}px);",
+                    double = margin * 2
+                ),
+            ),
+            ThemeImageSlot::Category => (
+                ".sidebar .category-header { position: relative; isolation: isolate; overflow: hidden; }",
+                ".sidebar .category-header::before",
+                format!("position: absolute; inset: -{margin}px;"),
+            ),
+            ThemeImageSlot::Subcategory => (
+                ".sidebar .subcategory-item { position: relative; isolation: isolate; overflow: hidden; }",
+                ".sidebar .subcategory-item::before",
+                format!("position: absolute; inset: -{margin}px;"),
+            ),
         }
     }
 }
@@ -118,11 +132,13 @@ pub struct ThemeImage {
     /// 100 = image pleinement visible, 0 = image cachée par la couleur de
     /// la zone (posée par-dessus pour garder le texte lisible).
     pub opacity: u8,
+    /// Flou de l'image, en pixels (0 = nette).
+    pub blur: u8,
 }
 
 impl ThemeImage {
     pub fn new(file: String) -> ThemeImage {
-        ThemeImage { file, fit: ImageFit::default(), opacity: DEFAULT_IMAGE_OPACITY }
+        ThemeImage { file, fit: ImageFit::default(), opacity: DEFAULT_IMAGE_OPACITY, blur: 0 }
     }
 
     /// Lecture tolérante (fichier modifié à la main, ancienne version) :
@@ -136,13 +152,16 @@ impl ThemeImage {
             file: file.to_string(),
             fit: fit_from_value(value),
             opacity: opacity_from_value(value),
+            blur: blur_from_value(value),
         })
     }
 
-    /// Règle CSS de la zone : l'opacité est obtenue en posant la couleur de
-    /// la zone par-dessus l'image (d'autant plus couvrante que l'opacité est
-    /// basse). Si l'image n'est pas chargée, sa variable n'existe pas et le
-    /// navigateur ignore simplement l'image (la couleur de fond reste).
+    /// Règles CSS de la zone. L'opacité est obtenue en posant la couleur
+    /// de la zone par-dessus l'image (d'autant plus couvrante que l'opacité
+    /// est basse), le flou par `filter: blur` sur le calque de l'image (et
+    /// non `backdrop-filter`, que WebKitGTK ne dessine pas sans accélération
+    /// graphique). Si l'image n'est pas chargée, sa variable n'existe pas et
+    /// le navigateur ignore simplement l'image.
     pub fn css_rule(&self, slot: ThemeImageSlot) -> String {
         let cover = 100 - self.opacity.min(100);
         let veil = format!("color-mix(in srgb, {} {cover}%, transparent)", slot.veil_color());
@@ -151,12 +170,14 @@ impl ThemeImage {
             ImageFit::Contain => ("contain", "no-repeat"),
             ImageFit::Repeat => ("auto", "repeat"),
         };
+        let blur = self.blur.min(MAX_IMAGE_BLUR);
+        let filter = if blur > 0 { format!("filter: blur({blur}px); ") } else { String::new() };
+        let (host, layer, placement) = slot.layer(blur as u32 * 3);
         format!(
-            "{} {{ background-image: linear-gradient({veil}, {veil}), var({}); background-size: auto, {size}; \
-             background-repeat: no-repeat, {repeat}; background-position: center, center; {}}}",
-            slot.selector(),
+            "{host}\n{layer} {{ content: \"\"; {placement} z-index: -1; pointer-events: none; \
+             background-image: linear-gradient({veil}, {veil}), var({}); background-size: auto, {size}; \
+             background-repeat: no-repeat, {repeat}; background-position: center, center; {filter}}}",
             slot.css_variable(),
-            slot.extra_rules(),
         )
     }
 }
@@ -170,6 +191,13 @@ impl<'de> Deserialize<'de> for ThemeImage {
 
 pub fn fit_from_value(value: &Value) -> ImageFit {
     value.get("fit").and_then(Value::as_str).and_then(ImageFit::from_key).unwrap_or_default()
+}
+
+/// Flou maximal d'une image, en pixels.
+pub const MAX_IMAGE_BLUR: u8 = 20;
+
+pub fn blur_from_value(value: &Value) -> u8 {
+    value.get("blur").and_then(Value::as_u64).map(|v| v.min(MAX_IMAGE_BLUR as u64) as u8).unwrap_or(0)
 }
 
 /// Opacité de l'image ; les fichiers d'avant enregistraient l'inverse sous
@@ -256,7 +284,11 @@ mod tests {
         assert_eq!(image.opacity, 70);
         // Fond des pages : calque fixe, jamais `background-attachment: fixed`.
         let rule = image.css_rule(ThemeImageSlot::PageBackground);
-        assert!(rule.starts_with("body::before {") && rule.contains("position: fixed") && !rule.contains("attachment"));
+        assert!(rule.contains("body::before {") && rule.contains("position: fixed") && !rule.contains("attachment"));
+        // Flou : `filter` sur le calque, pas `backdrop-filter`.
+        let blurred = ThemeImage { blur: 6, ..image.clone() }.css_rule(ThemeImageSlot::MenuBackground);
+        assert!(blurred.contains("filter: blur(6px)") && !blurred.contains("backdrop"));
+        assert!(!image.css_rule(ThemeImageSlot::MenuBackground).contains("filter"));
         assert!(ThemeImage::from_value(&serde_json::json!({ "file": "/etc/passwd" })).is_none());
     }
 }

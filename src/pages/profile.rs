@@ -1,8 +1,9 @@
 use dioxus::prelude::*;
-use crate::components::LanguageSelect;
+use crate::components::{LanguageSelect, UrlImageButton};
 use crate::i18n::use_texts;
-use crate::models::User;
+use crate::models::{User, MAX_IMAGE_BYTES};
 use crate::pages::theme_settings::ThemeSection;
+use crate::persistence::{self, MediaError};
 use crate::state::UserStore;
 
 /// Section affichée à droite du menu des réglages.
@@ -217,69 +218,82 @@ fn PasswordSection(user: User) -> Element {
     }
 }
 
-/// Icône : image de profil du compte (affichée sur l'écran de connexion).
+/// Icône : image de profil du compte (affichée sur l'écran de connexion),
+/// choisie parmi les fichiers de l'ordinateur et copiée dans le dossier du
+/// compte.
 #[component]
 fn IconSection(user: User) -> Element {
     let i18n_text = use_texts();
     let mut user_store = use_context::<Signal<UserStore>>();
+    let mut error = use_signal(|| None::<String>);
     let user_id = user.id;
-    let has_avatar = user.avatar_url.is_some();
+    let has_avatar = user.avatar_file.is_some() || user.avatar_url.is_some();
+    // Toujours une valeur explicite : en mettant à jour `style`, Dioxus
+    // remet les anciennes propriétés absentes de la nouvelle valeur, une
+    // chaîne vide garderait donc l'image précédente.
+    let preview_style = format!(
+        "background-image: {};",
+        persistence::avatar_css_url(&user).unwrap_or_else(|| "none".to_string())
+    );
 
-    let mut avatar_url = use_signal(|| user.avatar_url.clone().unwrap_or_default());
-    let mut saved = use_signal(|| false);
+    // Copie l'image (fichier choisi ou téléchargée depuis une URL) dans le
+    // dossier du compte.
+    let mut apply = move |bytes: Vec<u8>| match persistence::save_avatar(user_id, &bytes) {
+        Ok(name) => {
+            user_store.write().set_avatar_file(user_id, Some(name));
+            error.set(None);
+        }
+        Err(e) => error.set(Some(i18n_text.media_error(&e))),
+    };
 
-    let avatar_url_value = avatar_url.read().trim().to_string();
-    let avatar_preview_style = if avatar_url_value.is_empty() {
-        String::new()
-    } else {
-        format!("background-image: url('{avatar_url_value}');")
+    let choose = move |event: FormEvent| {
+        let Some(file) = event.files().into_iter().next() else { return };
+        if file.size() > MAX_IMAGE_BYTES as u64 {
+            error.set(Some(i18n_text.media_error(&MediaError::TooLarge)));
+            return;
+        }
+        spawn(async move {
+            match file.read_bytes().await {
+                Ok(bytes) => apply(bytes.to_vec()),
+                Err(e) => error.set(Some(i18n_text.media_error(&MediaError::Io(e.to_string())))),
+            }
+        });
     };
 
     rsx! {
         h1 { "{i18n_text.icon}" }
         p { class: "profile-hint", "{i18n_text.icon_hint}" }
-        form {
-            class: "profile-form",
-            onsubmit: move |event| {
-                event.prevent_default();
-                let raw = avatar_url.read().trim().to_string();
-                user_store.write().set_avatar(user_id, if raw.is_empty() { None } else { Some(raw) });
-                saved.set(true);
-            },
-            div { class: "profile-avatar-row",
-                div {
-                    class: "profile-avatar-preview profile-avatar-preview--large",
-                    style: "{avatar_preview_style}",
-                }
-                label {
-                    "{i18n_text.avatar_url_label}"
+        div { class: "profile-avatar-row",
+            div {
+                class: "profile-avatar-preview profile-avatar-preview--large",
+                style: "{preview_style}",
+            }
+            div { class: "theme-image-actions",
+                label { class: "theme-import-btn",
+                    "📁 {i18n_text.from_file}"
                     input {
-                        value: "{avatar_url}",
-                        oninput: move |event| {
-                            avatar_url.set(event.value());
-                            saved.set(false);
-                        },
+                        r#type: "file",
+                        accept: "image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif",
+                        onchange: choose,
                     }
                 }
-            }
-            if saved() {
-                p { class: "profile-success", "{i18n_text.profile_saved}" }
-            }
-            div { class: "profile-password-actions",
-                button { r#type: "submit", class: "primary-btn", "{i18n_text.save}" }
+                UrlImageButton { onloaded: move |bytes: Vec<u8>| apply(bytes) }
                 if has_avatar {
                     button {
                         r#type: "button",
-                        class: "danger-btn",
+                        class: "theme-remove-btn",
                         onclick: move |_| {
-                            user_store.write().set_avatar(user_id, None);
-                            avatar_url.set(String::new());
-                            saved.set(true);
+                            user_store.write().set_avatar_file(user_id, None);
+                            persistence::remove_other_avatars(user_id, None);
+                            error.set(None);
                         },
-                        "{i18n_text.remove_avatar}"
+                        "🗑 {i18n_text.remove_image}"
                     }
                 }
             }
+        }
+        if let Some(message) = error() {
+            p { class: "auth-error", "{message}" }
         }
     }
 }

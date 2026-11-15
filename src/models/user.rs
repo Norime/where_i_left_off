@@ -3,8 +3,10 @@ use crate::i18n::Language;
 use crate::models::{deserialize_saved_themes, SavedTheme, Theme, ThemeChoice};
 
 /// Un compte utilisateur local. `password_hash` vaut `None` si le compte
-/// n'est pas protégé par mot de passe. `avatar_url` est l'image de profil
-/// (réglages › Apparence › Icône). Le thème de l'interface est
+/// n'est pas protégé par mot de passe. `avatar_file` est l'image de profil
+/// (réglages › Apparence › Icône), copiée dans le dossier du compte ;
+/// `avatar_url` est l'ancienne icône par URL, gardée tant qu'elle n'est pas
+/// remplacée. Le thème de l'interface est
 /// `theme_choice`, qui désigne un prédéfini ou un des `saved_themes`
 /// (thèmes créés ou importés par l'utilisateur).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -13,6 +15,8 @@ pub struct User {
     pub username: String,
     pub password_hash: Option<String>,
     pub avatar_url: Option<String>,
+    #[serde(default)]
+    pub avatar_file: Option<String>,
     #[serde(default)]
     pub language: Language,
     #[serde(default)]

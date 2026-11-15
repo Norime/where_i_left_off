@@ -10,6 +10,7 @@ use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::net::SearchError;
+use crate::persistence::MediaError;
 use crate::models::{ImageFit, ThemeColor, ThemeImageSlot, ThemePreset};
 use crate::state::UserStore;
 
@@ -149,7 +150,6 @@ pub struct Texts {
     pub icon: &'static str,
     pub theme_hint: &'static str,
     pub icon_hint: &'static str,
-    pub remove_avatar: &'static str,
     pub theme_menu_background: &'static str,
     pub theme_menu_highlight: &'static str,
     pub theme_menu_text: &'static str,
@@ -198,21 +198,23 @@ pub struct Texts {
     pub image_slot_menu_background: &'static str,
     pub image_slot_category: &'static str,
     pub image_slot_subcategory: &'static str,
-    pub choose_image: &'static str,
-    pub change_image: &'static str,
     pub remove_image: &'static str,
     pub image_fit: &'static str,
     pub image_fit_cover: &'static str,
     pub image_fit_contain: &'static str,
     pub image_fit_repeat: &'static str,
     pub image_opacity: &'static str,
+    pub image_blur: &'static str,
     pub image_unsupported: &'static str,
     pub image_too_large: fn(&str) -> String,
     pub image_save_failed: fn(&str) -> String,
-    pub glass_title: &'static str,
-    pub glass_hint: &'static str,
-    pub glass_needs_image: &'static str,
-    pub glass_needs_transparency: &'static str,
+    pub from_file: &'static str,
+    pub from_url: &'static str,
+    pub download: &'static str,
+    pub downloading: &'static str,
+    pub image_url_invalid: &'static str,
+    pub image_download_failed: fn(&str) -> String,
+    pub image_download_http: fn(u16) -> String,
     pub export_title: fn(&str) -> String,
     pub export_include_images: fn(&str) -> String,
     pub export_images_hint: &'static str,
@@ -223,7 +225,6 @@ pub struct Texts {
     pub account_not_found: &'static str,
     pub has_password_hint: &'static str,
     pub no_password_hint: &'static str,
-    pub avatar_url_label: &'static str,
     pub profile_saved: &'static str,
     pub new_password_placeholder: &'static str,
     pub enter_password_first: &'static str,
@@ -417,6 +418,16 @@ impl Texts {
             ThemePreset::Light => self.theme_preset_light,
             ThemePreset::Forest => self.theme_preset_forest,
             ThemePreset::Dusk => self.theme_preset_dusk,
+        }
+    }
+
+    /// Message d'erreur quand une image (icône, image de thème) n'a pas pu
+    /// être enregistrée.
+    pub fn media_error(&self, error: &MediaError) -> String {
+        match error {
+            MediaError::Unsupported => self.image_unsupported.to_string(),
+            MediaError::TooLarge => (self.image_too_large)(&(self.file_size)(crate::models::MAX_IMAGE_BYTES as u64)),
+            MediaError::Io(detail) => (self.image_save_failed)(detail),
         }
     }
 

@@ -36,6 +36,7 @@ impl UserStore {
             username,
             password_hash,
             avatar_url: None,
+            avatar_file: None,
             language,
             theme_choice: ThemeChoice::default(),
             saved_themes: Vec::new(),
@@ -66,10 +67,12 @@ impl UserStore {
         Ok(())
     }
 
-    /// Change (ou retire, avec `None`) l'image de profil d'un compte.
-    pub fn set_avatar(&mut self, user_id: usize, avatar_url: Option<String>) {
+    /// Change (ou retire, avec `None`) l'icône d'un compte : nom du fichier
+    /// copié par `persistence::save_avatar`. Remplace l'ancienne icône par URL.
+    pub fn set_avatar_file(&mut self, user_id: usize, file: Option<String>) {
         if let Some(user) = self.users.iter_mut().find(|u| u.id == user_id) {
-            user.avatar_url = avatar_url;
+            user.avatar_file = file;
+            user.avatar_url = None;
         }
     }
 
