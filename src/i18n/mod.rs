@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::net::SearchError;
 use crate::persistence::MediaError;
-use crate::models::{ImageFit, ItemStatus, MenuPosition, ProgressMode, ThemeColor, ThemeImageSlot, ThemePreset};
+use crate::models::{DoneWord, ImageFit, ItemStatus, MenuPosition, ProgressMode, SubcategoryTemplate, TemplateField, TemplateGroup, TemplateTab, ThemeColor, ThemeImageSlot, ThemePreset};
 use crate::state::UserStore;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -131,8 +131,46 @@ pub struct Texts {
     pub status_manual_hint: &'static str,
     pub progress_single_hint: &'static str,
     pub mark_done: &'static str,
-    pub marked_done: &'static str,
     pub unmark_done: &'static str,
+    pub template_label: &'static str,
+    pub template_none: &'static str,
+    pub template_hint: &'static str,
+    pub template_change_hint: &'static str,
+    pub template_movie: &'static str,
+    pub template_series: &'static str,
+    pub template_manga: &'static str,
+    pub template_novel: &'static str,
+    pub template_video_game: &'static str,
+    pub template_podcast: &'static str,
+    pub template_audiobook: &'static str,
+    pub field_director: &'static str,
+    pub field_release_date: &'static str,
+    pub field_studio: &'static str,
+    pub field_author: &'static str,
+    pub field_publisher: &'static str,
+    pub field_pages: &'static str,
+    pub field_platform: &'static str,
+    pub field_host: &'static str,
+    pub field_narrator: &'static str,
+    pub tab_cast: &'static str,
+    pub tab_characters: &'static str,
+    pub tab_achievements: &'static str,
+    pub group_season_1: &'static str,
+    pub group_volume_1: &'static str,
+    pub group_chapters: &'static str,
+    pub group_episodes: &'static str,
+    pub status_watched: &'static str,
+    pub status_read: &'static str,
+    pub status_listened: &'static str,
+    pub mark_watched: &'static str,
+    pub mark_read: &'static str,
+    pub mark_listened: &'static str,
+    pub info_title: &'static str,
+    pub info_empty_value: &'static str,
+    pub info_add_label: &'static str,
+    pub info_add_value: &'static str,
+    pub info_none: &'static str,
+    pub suggested_source: &'static str,
     pub progress_mode_label: &'static str,
     pub progress_mode_list: &'static str,
     pub progress_mode_single: &'static str,
@@ -473,6 +511,71 @@ impl Texts {
             ItemStatus::Planned => self.status_planned,
             ItemStatus::OnHold => self.status_on_hold,
             ItemStatus::Dropped => self.status_dropped,
+        }
+    }
+
+    pub fn template_name(&self, template: SubcategoryTemplate) -> &'static str {
+        match template {
+            SubcategoryTemplate::Movie => self.template_movie,
+            SubcategoryTemplate::Series => self.template_series,
+            SubcategoryTemplate::Manga => self.template_manga,
+            SubcategoryTemplate::Novel => self.template_novel,
+            SubcategoryTemplate::VideoGame => self.template_video_game,
+            SubcategoryTemplate::Podcast => self.template_podcast,
+            SubcategoryTemplate::Audiobook => self.template_audiobook,
+        }
+    }
+
+    pub fn template_field(&self, field: TemplateField) -> &'static str {
+        match field {
+            TemplateField::Director => self.field_director,
+            TemplateField::ReleaseDate => self.field_release_date,
+            TemplateField::Duration => self.duration_label,
+            TemplateField::Studio => self.field_studio,
+            TemplateField::Author => self.field_author,
+            TemplateField::Publisher => self.field_publisher,
+            TemplateField::Pages => self.field_pages,
+            TemplateField::Platform => self.field_platform,
+            TemplateField::Host => self.field_host,
+            TemplateField::Narrator => self.field_narrator,
+        }
+    }
+
+    pub fn template_tab(&self, tab: TemplateTab) -> &'static str {
+        match tab {
+            TemplateTab::Cast => self.tab_cast,
+            TemplateTab::Characters => self.tab_characters,
+            TemplateTab::Achievements => self.tab_achievements,
+        }
+    }
+
+    pub fn template_group(&self, group: TemplateGroup) -> &'static str {
+        match group {
+            TemplateGroup::Season1 => self.group_season_1,
+            TemplateGroup::Volume1 => self.group_volume_1,
+            TemplateGroup::Chapters => self.group_chapters,
+            TemplateGroup::Episodes => self.group_episodes,
+        }
+    }
+
+    /// Nom d'un statut dans le vocabulaire de la sous-catégorie : Terminé
+    /// devient Vu, Lu ou Écouté.
+    pub fn status_name_in(&self, status: ItemStatus, word: DoneWord) -> &'static str {
+        match (status, word) {
+            (ItemStatus::Done, DoneWord::Watched) => self.status_watched,
+            (ItemStatus::Done, DoneWord::Read) => self.status_read,
+            (ItemStatus::Done, DoneWord::Listened) => self.status_listened,
+            _ => self.status_name(status),
+        }
+    }
+
+    /// Bouton « Marquer comme … » de la fiche simple.
+    pub fn mark_done_in(&self, word: DoneWord) -> &'static str {
+        match word {
+            DoneWord::Done => self.mark_done,
+            DoneWord::Watched => self.mark_watched,
+            DoneWord::Read => self.mark_read,
+            DoneWord::Listened => self.mark_listened,
         }
     }
 

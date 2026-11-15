@@ -5,13 +5,14 @@ use dioxus::prelude::*;
 use crate::components::{FetchedItemData, InlineAddForm, ItemSourceSearch, Modal, TypeCheckboxList};
 use crate::i18n::use_texts;
 use crate::models::{ImportedFrom, ItemInfoField, ItemOrientation, ItemPlacement, ProgressNode, ProgressNodeKind};
-use crate::state::{ItemStore, TypeStore};
+use crate::state::{CategoryStore, ItemStore, TypeStore};
 
 #[component]
 pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHandler<()>) -> Element {
     let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut type_store = use_context::<Signal<TypeStore>>();
+    let category_store = use_context::<Signal<CategoryStore>>();
 
     let mut title = use_signal(String::new);
     let mut image_url = use_signal(|| Option::<String>::None);
@@ -35,12 +36,16 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                         return;
                     }
 
-                    let placement = ItemPlacement {
+                    let mut placement = ItemPlacement {
                         type_ids: selected_type_ids.read().iter().cloned().collect(),
                         progress: progress.read().clone(),
                         imported_from: imported_from.read().clone(),
                         ..ItemPlacement::new(category_id, subcategory_id)
                     };
+                    let mut info = extra_info.read().clone();
+                    if let Some(template) = category_store.read().subcategory_template(category_id, subcategory_id) {
+                        template.apply(i18n_text, &mut info, &mut placement);
+                    }
 
                     item_store
                         .write()
@@ -50,7 +55,7 @@ pub fn NewItemModal(category_id: usize, subcategory_id: usize, onclose: EventHan
                             placement,
                             *orientation.read(),
                             image_url.read().clone(),
-                            extra_info.read().clone(),
+                            info,
                         );
                     onclose.call(());
                 },

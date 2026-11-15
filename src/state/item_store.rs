@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use crate::source_import;
-use crate::models::{clean_resume_at, CounterSettings, ImportedFrom, Item, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind, ItemOrientation, ItemPlacement, ItemStatus, ProgressMode, WorkStatus, ItemTab};
+use crate::i18n::Texts;
+use crate::models::{apply_to_item, clean_resume_at, CounterSettings, SubcategoryTemplate, ImportedFrom, Item, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind, ItemOrientation, ItemPlacement, ItemStatus, ProgressMode, WorkStatus, ItemTab};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct ItemStore {
@@ -98,6 +99,21 @@ impl ItemStore {
             if !already_there {
                 item.placements.push(ItemPlacement::new(category_id, subcategory_id));
             }
+        }
+    }
+
+    /// Prérègle un placement avec le modèle de sa sous-catégorie et
+    /// complète les infos de l'œuvre (voir `SubcategoryTemplate::apply`).
+    pub fn apply_template(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, template: SubcategoryTemplate, texts: &Texts) {
+        if let Some(item) = self.items.iter_mut().find(|i| i.id == item_id) {
+            apply_to_item(template, texts, item, category_id, subcategory_id);
+        }
+    }
+
+    /// Remplace les infos globales de l'œuvre (studio, date de sortie…).
+    pub fn set_item_info(&mut self, item_id: usize, extra_info: Vec<ItemInfoField>) {
+        if let Some(item) = self.items.iter_mut().find(|i| i.id == item_id) {
+            item.extra_info = extra_info;
         }
     }
 

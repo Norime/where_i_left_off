@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use crate::components::{CategorySettingsModal, InlineAddForm};
 use crate::i18n::{use_texts, Language};
-use crate::models::Category;
+use crate::models::{Category, SubcategoryTemplate};
 use crate::routes::Route;
 use crate::state::CategoryStore;
 
@@ -11,7 +11,6 @@ use crate::state::CategoryStore;
 pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) -> Element {
     let i18n_text = use_texts();
     let language = use_context::<Memo<Language>>()();
-    let mut category_store = use_context::<Signal<CategoryStore>>();
     // Élément en cours de configuration : `Some(None)` pour la catégorie,
     // `Some(Some(id))` pour une de ses sous-catégories.
     let mut editing = use_signal(|| None::<Option<usize>>);
@@ -73,12 +72,7 @@ pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) ->
                         }
                     }
                     li {
-                        InlineAddForm {
-                            placeholder: "{i18n_text.new_subcategory}",
-                            onsubmit: move |name: String| {
-                                category_store.write().add_subcategory(category_id, name);
-                            },
-                        }
+                        SubcategoryAddForm { category_id }
                     }
                 }
             }
@@ -89,6 +83,42 @@ pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) ->
                     category_id,
                     subcategory_id,
                     onclose: move |_| editing.set(None),
+                }
+            }
+        }
+    }
+}
+
+/// Ajout d'une sous-catégorie : son nom, et le modèle qui préréglera ses
+/// fiches (aucun par défaut, modifiable ensuite dans sa configuration).
+#[component]
+fn SubcategoryAddForm(category_id: usize) -> Element {
+    let i18n_text = use_texts();
+    let mut category_store = use_context::<Signal<CategoryStore>>();
+    let mut template = use_signal(|| None::<SubcategoryTemplate>);
+    let current = template();
+
+    rsx! {
+        div { class: "subcategory-add",
+            InlineAddForm {
+                placeholder: "{i18n_text.new_subcategory}",
+                onsubmit: move |name: String| {
+                    category_store.write().add_subcategory(category_id, name, template());
+                    template.set(None);
+                },
+            }
+            select {
+                class: "subcategory-template-select",
+                title: "{i18n_text.template_hint}",
+                onchange: move |event| template.set(SubcategoryTemplate::from_key(&event.value())),
+                option { value: "", selected: current.is_none(), "{i18n_text.template_label} : {i18n_text.template_none}" }
+                for option_template in SubcategoryTemplate::ALL {
+                    option {
+                        key: "{option_template.key()}",
+                        value: "{option_template.key()}",
+                        selected: current == Some(option_template),
+                        "{i18n_text.template_label} : {i18n_text.template_name(option_template)}"
+                    }
                 }
             }
         }

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::i18n::Language;
+use crate::models::SubcategoryTemplate;
 
 /// Nom traduit dans `language` s'il existe et n'est pas vide, sinon le nom
 /// par défaut.
@@ -20,12 +21,20 @@ pub struct Subcategory {
     /// fichiers, d'où le `default`).
     #[serde(default)]
     pub translations: HashMap<Language, String>,
+    /// Clé du modèle (`SubcategoryTemplate::key`) qui prérègle les fiches
+    /// créées ici. Une clé inconnue revient à « aucun modèle ».
+    #[serde(default)]
+    pub template: Option<String>,
 }
 
 impl Subcategory {
     /// Nom à afficher dans la langue active.
     pub fn display_name(&self, language: Language) -> &str {
         translated(&self.name, &self.translations, language)
+    }
+
+    pub fn template(&self) -> Option<SubcategoryTemplate> {
+        self.template.as_deref().and_then(SubcategoryTemplate::from_key)
     }
 }
 
@@ -51,7 +60,7 @@ impl Category {
             subcategories: Vec::new(),
             next_subcategory_id: 0,
         };
-        category.add_subcategory("All".to_string());
+        category.add_subcategory("All".to_string(), None);
         category
     }
 
@@ -62,9 +71,14 @@ impl Category {
 
     /// Ajoute une nouvelle sous-catégorie, avec un id unique généré
     /// via le compteur interne `next_subcategory_id`.
-    pub fn add_subcategory(&mut self, name: String) {
+    pub fn add_subcategory(&mut self, name: String, template: Option<SubcategoryTemplate>) {
         let id = self.next_subcategory_id;
         self.next_subcategory_id += 1;
-        self.subcategories.push(Subcategory { id, name, translations: HashMap::new() });
+        self.subcategories.push(Subcategory {
+            id,
+            name,
+            translations: HashMap::new(),
+            template: template.map(|t| t.key().to_string()),
+        });
     }
 }

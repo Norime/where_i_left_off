@@ -2,11 +2,11 @@ use dioxus::prelude::*;
 use std::collections::HashSet;
 
 use crate::components::{DeleteButton, FetchedItemData, ItemSourceSearch, Modal};
-use crate::i18n::{use_texts, Language};
-use crate::models::{CounterSettings, ImportedFrom, ItemInfoField, ItemStatus, ProgressLink, ProgressMode, ProgressNode, ProgressNodeKind};
+use crate::i18n::{use_texts, Language, Texts};
+use crate::models::{add_missing_fields, CounterSettings, DoneWord, ImportedFrom, ItemInfoField, ItemStatus, ProgressLink, ProgressMode, ProgressNode, ProgressNodeKind};
 use crate::net::SearchError;
 use crate::source_import;
-use crate::state::{ItemStore, SourceStore};
+use crate::state::{CategoryStore, ItemStore, SourceStore};
 
 /// Panneau de suivi de progression d'un placement précis (une catégorie +
 /// sous-catégorie données).
@@ -20,6 +20,7 @@ use crate::state::{ItemStore, SourceStore};
 #[component]
 pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) -> Element {
     let mut item_store = use_context::<Signal<ItemStore>>();
+    let category_store = use_context::<Signal<CategoryStore>>();
     let expanded = use_signal(HashSet::<usize>::new);
     let editing_card = use_signal(|| None::<usize>);
 
@@ -36,6 +37,11 @@ pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) 
     };
 
     let mode = placement.progress_mode;
+    let done_word = category_store
+        .read()
+        .subcategory_template(category_id, subcategory_id)
+        .map(|t| t.done_word())
+        .unwrap_or_default();
     let progress = placement.progress;
     let imported_from = placement.imported_from;
     // La fiche simple n'affiche pas de liste : seulement tant qu'il n'y en a
@@ -74,6 +80,7 @@ pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) 
                         subcategory_id,
                         status: placement.status,
                         resume_at: placement.resume_at,
+                        done_word,
                     }
                 },
                 ProgressMode::Percent => rsx! {
@@ -133,7 +140,14 @@ fn input_number(value: f64) -> String {
 /// Fiche simple (un film…) : pas de liste, l'œuvre est terminée ou pas.
 /// Le statut se change ici d'un clic, ou dans le sélecteur de statut.
 #[component]
-fn SingleProgress(item_id: usize, category_id: usize, subcategory_id: usize, status: ItemStatus, resume_at: Option<String>) -> Element {
+fn SingleProgress(
+    item_id: usize,
+    category_id: usize,
+    subcategory_id: usize,
+    status: ItemStatus,
+    resume_at: Option<String>,
+    done_word: DoneWord,
+) -> Element {
     let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut set_status = move |status: ItemStatus| {
@@ -144,10 +158,10 @@ fn SingleProgress(item_id: usize, category_id: usize, subcategory_id: usize, sta
         p { class: "progress-usage-hint", "{i18n_text.progress_single_hint}" }
         div { class: "progress-single-actions",
             if status == ItemStatus::Done {
-                span { class: "progress-single-done", "✓ {i18n_text.marked_done}" }
+                span { class: "progress-single-done", "✓ {i18n_text.status_name_in(ItemStatus::Done, done_word)}" }
                 button { r#type: "button", onclick: move |_| set_status(ItemStatus::New), "{i18n_text.unmark_done}" }
             } else {
-                button { r#type: "button", class: "primary-btn", onclick: move |_| set_status(ItemStatus::Done), "✓ {i18n_text.mark_done}" }
+                button { r#type: "button", class: "primary-btn", onclick: move |_| set_status(ItemStatus::Done), "✓ {i18n_text.mark_done_in(done_word)}" }
                 label { class: "progress-single-resume",
                     "{i18n_text.resume_at_label}"
                     ResumeInput {
@@ -564,7 +578,7 @@ fn ProgressNodeRow(
     let duration = node
         .fields
         .iter()
-        .find(|f| Language::ALL.iter().any(|l| l.texts().duration_label == f.label))
+        .find(|f| Language::ALL.iter().any(|l| l.texts().duration_label == f.label) && !f.value.trim().is_empty())
         .map(|f| f.value.clone());
 
     match kind {
@@ -1105,7 +1119,33 @@ fn ProgressFieldsEditor(
             }
             for (index , label , value) in field_rows {
                 span { class: "progress-field-chip", key: "{index}",
-                    "{label} : {value}"
+                    span { class: "progress-field-chip-label", "{label} :" }
+                    // Valeur modifiable sur place (un champ proposé par le
+                    // modèle arrive vide).
+                    input {
+                        r#type: "text",
+                        class: "progress-field-chip-value",
+                        value: "{value}",
+                        placeholder: "{i18n_text.info_empty_value}",
+                        size: "{value.chars().count().clamp(6, 24)}",
+                        onchange: move |event| {
+                            let mut updated: Vec<ItemInfoField> = item_store
+                                .read()
+                                .items
+                                .iter()
+                                .find(|i| i.id == item_id)
+                                .and_then(|i| i.placements.iter().find(|p| p.category_id == category_id && p.subcategory_id == subcategory_id))
+                                .and_then(|p| p.progress.iter().find(|n| n.id == node_id))
+                                .map(|n| n.fields.clone())
+                                .unwrap_or_default();
+                            if let Some(field) = updated.get_mut(index) {
+                                field.value = event.value().trim().to_string();
+                            }
+                            item_store
+                                .write()
+                                .set_progress_node_fields(item_id, category_id, subcategory_id, node_id, updated);
+                        },
+                    }
                     button {
                         r#type: "button",
                         class: "progress-field-remove",
@@ -1208,6 +1248,7 @@ fn ProgressFieldsEditor(
 fn CardAddTile(item_id: usize, category_id: usize, subcategory_id: usize, parent_id: Option<usize>, editing_card: Signal<Option<usize>>) -> Element {
     let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
+    let category_store = use_context::<Signal<CategoryStore>>();
 
     rsx! {
         button {
@@ -1226,6 +1267,7 @@ fn CardAddTile(item_id: usize, category_id: usize, subcategory_id: usize, parent
                         i18n_text.new_card_title.to_string(),
                     );
                 if let Some(new_id) = new_id {
+                    add_template_leaf_fields(item_store, category_store, i18n_text, item_id, category_id, subcategory_id, new_id);
                     editing_card.set(Some(new_id));
                 }
             },
@@ -1239,6 +1281,7 @@ fn CardAddTile(item_id: usize, category_id: usize, subcategory_id: usize, parent
 fn TextCreateForm(item_id: usize, category_id: usize, subcategory_id: usize, parent_id: Option<usize>) -> Element {
     let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
+    let category_store = use_context::<Signal<CategoryStore>>();
     let mut new_title = use_signal(String::new);
 
     rsx! {
@@ -1256,7 +1299,7 @@ fn TextCreateForm(item_id: usize, category_id: usize, subcategory_id: usize, par
                 onclick: move |_| {
                     let title = new_title.read().trim().to_string();
                     if !title.is_empty() {
-                        item_store
+                        let new_id = item_store
                             .write()
                             .add_progress_node(
                                 item_id,
@@ -1267,6 +1310,9 @@ fn TextCreateForm(item_id: usize, category_id: usize, subcategory_id: usize, par
                                 None,
                                 title,
                             );
+                        if let Some(new_id) = new_id {
+                            add_template_leaf_fields(item_store, category_store, i18n_text, item_id, category_id, subcategory_id, new_id);
+                        }
                         new_title.set(String::new());
                     }
                 },
@@ -1365,4 +1411,24 @@ fn ResumeInput(value: Option<String>, onsave: EventHandler<String>) -> Element {
             onchange: move |event| onsave.call(event.value()),
         }
     }
+}
+
+/// Ajoute, vides, les champs que le modèle de la sous-catégorie propose
+/// sur chaque élément (durée, date de sortie…) à un élément tout juste créé.
+fn add_template_leaf_fields(
+    mut item_store: Signal<ItemStore>,
+    category_store: Signal<CategoryStore>,
+    i18n_text: &Texts,
+    item_id: usize,
+    category_id: usize,
+    subcategory_id: usize,
+    node_id: usize,
+) {
+    let Some(template) = category_store.read().subcategory_template(category_id, subcategory_id) else { return };
+    if template.leaf_fields().is_empty() {
+        return;
+    }
+    let mut fields = Vec::new();
+    add_missing_fields(&mut fields, template.leaf_fields().iter().map(|f| i18n_text.template_field(*f).to_string()));
+    item_store.write().set_progress_node_fields(item_id, category_id, subcategory_id, node_id, fields);
 }

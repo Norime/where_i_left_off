@@ -520,3 +520,62 @@
 .item-tab-empty {
     min-height: 60px;
 }
+/* Infos globales de l'œuvre : libellé, valeur modifiable, suppression. */
+.item-info-panel {
+    margin-top: 1.2rem;
+    max-width: 40rem;
+}
+.item-info-panel h3 {
+    margin: 0 0 0.5rem;
+}
+.item-info-grid {
+    display: grid;
+    grid-template-columns: minmax(6rem, max-content) 1fr auto;
+    align-items: center;
+    gap: 0.3rem 0.8rem;
+}
+.item-info-row {
+    display: contents;
+}
+.item-info-label {
+    font-weight: 600;
+    color: color-mix(in srgb, var(--text) 75%, transparent);
+}
+.item-info-value {
+    font: inherit;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text);
+    min-width: 0;
+}
+.item-info-value:hover,
+.item-info-value:focus {
+    border-color: color-mix(in srgb, var(--text) 25%, transparent);
+}
+.item-info-value:placeholder-shown {
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--text) 25%, transparent);
+}
+.item-info-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: color-mix(in srgb, var(--text) 50%, transparent);
+}
+.item-info-remove:hover {
+    color: var(--danger);
+}
+.item-info-add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+}
+.item-info-add input {
+    flex: 1;
+    min-width: 8rem;
+    font: inherit;
+    padding: 0.2rem 0.4rem;
+}

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use crate::components::{ItemCard, ManageSourcesModal, NewItemModal, TypeFilterDropdown};
 use crate::i18n::use_texts;
 use crate::models::ItemStatus;
-use crate::state::ItemStore;
+use crate::state::{CategoryStore, ItemStore};
 
 const BATCH_SIZE: usize = 24;
 
@@ -19,6 +19,12 @@ pub fn CategoryView(category_id: usize, subcategory_id: usize) -> Element {
     let i18n_text = use_texts();
     let item_store = use_context::<Signal<ItemStore>>();
 
+    // Vocabulaire du modèle de la sous-catégorie (Vu, Lu…) ; « All » n'en a pas.
+    let done_word = use_context::<Signal<CategoryStore>>()
+        .read()
+        .subcategory_template(category_id, subcategory_id)
+        .map(|t| t.done_word())
+        .unwrap_or_default();
     let mut sort_order = use_signal(|| SortOrder::TitleAsc);
     let mut status_filter = use_signal(|| Option::<ItemStatus>::None);
     let type_filter = use_signal(HashSet::<usize>::new);
@@ -120,7 +126,7 @@ pub fn CategoryView(category_id: usize, subcategory_id: usize) -> Element {
                     },
                     option { value: "all", "{i18n_text.status_all}" }
                     for status in ItemStatus::ALL {
-                        option { key: "{status.value_key()}", value: "{status.value_key()}", "{i18n_text.status_name(status)}" }
+                        option { key: "{status.value_key()}", value: "{status.value_key()}", "{i18n_text.status_name_in(status, done_word)}" }
                     }
                 }
                 // Combobox de filtre des Types

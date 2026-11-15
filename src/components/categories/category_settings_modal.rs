@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use crate::components::{DeleteButton, LanguageFlag, Modal};
 use crate::i18n::{use_texts, Language};
+use crate::models::SubcategoryTemplate;
 use crate::state::{CategoryStore, ItemStore, SourceStore, TypeStore};
 
 /// Configuration d'une catégorie (`subcategory_id: None`) ou d'une de ses
@@ -29,6 +30,10 @@ pub fn CategorySettingsModal(category_id: usize, subcategory_id: Option<usize>, 
         .unwrap_or_default()
     };
     let mut name = use_signal(|| initial_name);
+    // Modèle : seulement pour une vraie sous-catégorie (pas « All », id 0).
+    let has_template = subcategory_id.is_some_and(|sub_id| sub_id != 0);
+    let mut template =
+        use_signal(|| subcategory_id.and_then(|sub_id| category_store.peek().subcategory_template(category_id, sub_id)));
     // Liste (et non map) pour garder les langues dans l'ordre où on les
     // ajoute ; les traductions existantes suivent l'ordre de `Language::ALL`.
     let mut translations = use_signal(|| {
@@ -57,7 +62,11 @@ pub fn CategorySettingsModal(category_id: usize, subcategory_id: Option<usize>, 
         let new_translations: HashMap<Language, String> = translations().into_iter().collect();
         match subcategory_id {
             None => category_store.write().update_category(category_id, new_name, new_translations),
-            Some(sub_id) => category_store.write().update_subcategory(category_id, sub_id, new_name, new_translations),
+            Some(sub_id) => {
+                let mut store = category_store.write();
+                store.update_subcategory(category_id, sub_id, new_name, new_translations);
+                store.set_subcategory_template(category_id, sub_id, template());
+            }
         }
         onclose.call(());
     };
@@ -98,6 +107,24 @@ pub fn CategorySettingsModal(category_id: usize, subcategory_id: Option<usize>, 
                     input {
                         value: "{name}",
                         oninput: move |e| name.set(e.value()),
+                    }
+                }
+                if has_template {
+                    label {
+                        "{i18n_text.template_label}"
+                        select {
+                            onchange: move |e| template.set(SubcategoryTemplate::from_key(&e.value())),
+                            option { value: "", selected: template().is_none(), "{i18n_text.template_none}" }
+                            for option_template in SubcategoryTemplate::ALL {
+                                option {
+                                    key: "{option_template.key()}",
+                                    value: "{option_template.key()}",
+                                    selected: template() == Some(option_template),
+                                    "{i18n_text.template_name(option_template)}"
+                                }
+                            }
+                        }
+                        span { class: "translation-hint", "{i18n_text.template_change_hint}" }
                     }
                 }
                 fieldset { class: "translation-list",

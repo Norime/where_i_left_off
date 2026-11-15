@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::i18n::Language;
-use crate::models::Category;
+use crate::models::{Category, SubcategoryTemplate};
 
 /// Applique un nouveau nom et de nouvelles traductions (texte nettoyé).
 fn apply_names(
@@ -48,9 +48,36 @@ impl CategoryStore {
     }
 
     /// Ajoute une sous-catégorie à la catégorie correspondant à `category_id`.
-    pub fn add_subcategory(&mut self, category_id: usize, name: String) {
+    pub fn add_subcategory(&mut self, category_id: usize, name: String, template: Option<SubcategoryTemplate>) {
         if let Some(category) = self.categories.iter_mut().find(|c| c.id == category_id) {
-            category.add_subcategory(name);
+            category.add_subcategory(name, template);
+        }
+    }
+
+    /// Modèle d'une sous-catégorie (« All », id 0, n'en a jamais).
+    pub fn subcategory_template(&self, category_id: usize, subcategory_id: usize) -> Option<SubcategoryTemplate> {
+        self.categories
+            .iter()
+            .find(|c| c.id == category_id)?
+            .subcategories
+            .iter()
+            .find(|s| s.id == subcategory_id)?
+            .template()
+    }
+
+    /// Change le modèle d'une sous-catégorie : seules les fiches créées
+    /// ensuite sont concernées.
+    pub fn set_subcategory_template(&mut self, category_id: usize, subcategory_id: usize, template: Option<SubcategoryTemplate>) {
+        if subcategory_id == 0 {
+            return;
+        }
+        let subcategory = self
+            .categories
+            .iter_mut()
+            .find(|c| c.id == category_id)
+            .and_then(|c| c.subcategories.iter_mut().find(|s| s.id == subcategory_id));
+        if let Some(subcategory) = subcategory {
+            subcategory.template = template.map(|t| t.key().to_string());
         }
     }
 

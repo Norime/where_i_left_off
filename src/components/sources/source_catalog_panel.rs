@@ -38,13 +38,20 @@ pub fn SourceCatalogPanel(#[props(default)] fixed_scope: Option<SourceScope>) ->
             .join(", ")
     };
 
+    // Sources adaptées au modèle de la sous-catégorie : en tête de leur
+    // section, avec un badge.
+    let suggested: &'static [&'static str] = fixed_scope
+        .and_then(|scope| category_store.read().subcategory_template(scope.category_id, scope.subcategory_id))
+        .map(|t| t.suggested_sources())
+        .unwrap_or(&[]);
     let groups: Vec<(CatalogKind, Vec<&'static CatalogSource>)> = CatalogKind::ALL
         .iter()
         .map(|kind| {
-            let entries = source_catalog::catalog()
+            let mut entries: Vec<&'static CatalogSource> = source_catalog::catalog()
                 .iter()
                 .filter(|entry| entry.kind == *kind && entry.supports(content_language))
                 .collect();
+            entries.sort_by_key(|entry| !suggested.contains(&entry.id));
             (*kind, entries)
         })
         .collect();
@@ -94,6 +101,9 @@ pub fn SourceCatalogPanel(#[props(default)] fixed_scope: Option<SourceScope>) ->
                                         span { class: "catalog-card-site", "{entry.website}" }
                                         p { class: "catalog-card-description", "{entry.description(language)}" }
                                         div { class: "catalog-badges",
+                                            if suggested.contains(&entry.id) {
+                                                span { class: "catalog-badge suggested", "★ {i18n_text.suggested_source}" }
+                                            }
                                             if entry.api_key_url.is_some() {
                                                 span { class: "catalog-badge key", "🔑 {i18n_text.catalog_api_key_needed}" }
                                             }

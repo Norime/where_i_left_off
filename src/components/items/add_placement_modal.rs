@@ -119,6 +119,9 @@ pub fn AddPlacementModal(item_id: usize, onclose: EventHandler<()>) -> Element {
                                         store.set_placement_progress(item_id, cat, sub, progress());
                                         store.set_placement_import(item_id, cat, sub, Some(from));
                                     }
+                                    if let Some(template) = category_store.read().subcategory_template(cat, sub) {
+                                        store.apply_template(item_id, cat, sub, template, i18n_text);
+                                    }
                                     drop(store);
                                     onclose.call(());
                                 }

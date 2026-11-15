@@ -384,6 +384,7 @@
 }
 .catalog-badge.key { background: #fff4dc; color: #8a6100; }
 .catalog-badge.list { background: #e6f4f1; color: #1f6f69; }
+.catalog-badge.suggested { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); font-weight: bold; }
 .catalog-card-used { margin: 0; font-size: 0.75rem; color: var(--success); }
 .catalog-add-btn { align-self: flex-start; margin-top: 0.3rem; }
 
@@ -560,6 +561,21 @@
     padding: 0.15rem 0.5rem;
     font-size: 0.78rem;
     color: color-mix(in srgb, var(--text) 85%, transparent);
+}
+.progress-field-chip-value {
+    border: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    padding: 0;
+    min-width: 0;
+}
+.progress-field-chip-value:placeholder-shown {
+    font-style: italic;
+}
+.progress-field-chip-value:focus {
+    outline: 1px solid var(--accent);
+    border-radius: 3px;
 }
 .progress-field-remove {
     background: none;

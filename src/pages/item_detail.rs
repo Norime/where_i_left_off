@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use crate::components::{AddPlacementModal, DeleteButton, EditItemModal, TypePickerModal, ItemTabs};
+use crate::components::{AddPlacementModal, DeleteButton, EditItemModal, ItemInfoPanel, TypePickerModal, ItemTabs};
 use crate::i18n::{use_texts, Language};
 use crate::markdown;
 use crate::models::{ItemStatus, WorkStatus};
@@ -90,11 +90,17 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                 .unwrap_or((ItemStatus::New, None));
             // Avec une progression, les statuts calculés sont regroupés en
             // un seul choix « Selon la progression ».
+            // Vocabulaire du modèle de la sous-catégorie (Vu, Lu, Écouté).
+            let done_word = effective_placement
+                .and_then(|(cat_id, sub_id)| category_store.read().subcategory_template(cat_id, sub_id))
+                .map(|t| t.done_word())
+                .unwrap_or_default();
+            let status_name = |s: ItemStatus| i18n_text.status_name_in(s, done_word).to_string();
             let status_choices: Vec<(&'static str, String)> = match computed_status {
-                Some(computed) => std::iter::once(("auto", (i18n_text.status_auto)(i18n_text.status_name(computed))))
-                    .chain(ItemStatus::MANUAL.into_iter().map(|s| (s.value_key(), i18n_text.status_name(s).to_string())))
+                Some(computed) => std::iter::once(("auto", (i18n_text.status_auto)(&status_name(computed))))
+                    .chain(ItemStatus::MANUAL.into_iter().map(|s| (s.value_key(), status_name(s))))
                     .collect(),
-                None => ItemStatus::ALL.into_iter().map(|s| (s.value_key(), i18n_text.status_name(s).to_string())).collect(),
+                None => ItemStatus::ALL.into_iter().map(|s| (s.value_key(), status_name(s))).collect(),
             };
             let current_status_choice = if computed_status.is_some() && !current_status.is_manual() {
                 "auto"
@@ -202,6 +208,8 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                             onclick: move |_| description_expanded.set(!description_expanded()),
                             "{toggle_label}"
                         }
+
+                        ItemInfoPanel { item_id: item.id, fields: item.extra_info.clone() }
 
                         div { class: "placement-detail-panel",
                             div { class: "placement-detail-header",
