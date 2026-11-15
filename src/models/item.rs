@@ -136,6 +136,9 @@ pub struct ItemPlacement {
     pub imported_from: Option<ImportedFrom>,
     #[serde(default)]
     pub progress_mode: ProgressMode,
+    /// Fiche simple : où l'on s'est arrêté (« 1:12:00 », « p. 230 »).
+    #[serde(default)]
+    pub resume_at: Option<String>,
 }
 
 impl ItemPlacement {
@@ -151,6 +154,7 @@ impl ItemPlacement {
             tabs: Vec::new(),
             imported_from: None,
             progress_mode: ProgressMode::default(),
+            resume_at: None,
         }
     }
 
@@ -167,8 +171,11 @@ impl ItemPlacement {
         }
         let total = self.leaves().count();
         let done = self.leaves().filter(|n| n.is_done).count();
+        // Un élément avec une position « reprendre à » est commencé.
+        let started = self.leaves().any(|n| !n.is_done && n.resume_at.is_some());
         match (total, done) {
             (0, _) => None,
+            (_, 0) if started => Some(ItemStatus::InProgress),
             (_, 0) => Some(ItemStatus::New),
             (total, done) if done < total => Some(ItemStatus::InProgress),
             _ => Some(ItemStatus::Done),
@@ -288,6 +295,16 @@ pub struct ProgressNode {
     /// garder dans les nouveautés de l'accueil que les détections récentes.
     #[serde(default)]
     pub new_since: Option<u64>,
+    /// Où l'on s'est arrêté dans cet élément (« 34:12 », « p. 45 ») : texte
+    /// libre, effacé quand l'élément est coché.
+    #[serde(default)]
+    pub resume_at: Option<String>,
+}
+
+/// Position « reprendre à » saisie : espaces retirés, vide = aucune.
+pub fn clean_resume_at(value: &str) -> Option<String> {
+    let value = value.trim();
+    (!value.is_empty()).then(|| value.to_string())
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -317,7 +334,20 @@ mod tests {
             redirect_links: Vec::new(),
             is_new: false,
             new_since: None,
+            resume_at: None,
         }
+    }
+
+    #[test]
+    fn resume_position_starts_the_work() {
+        let mut placement = ItemPlacement::new(1, 1);
+        placement.progress = vec![leaf(0, false), leaf(1, false)];
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::New);
+        placement.progress[0].resume_at = clean_resume_at(" 34:12 ");
+        placement.refresh_status();
+        assert_eq!(placement.status, ItemStatus::InProgress);
+        assert_eq!(clean_resume_at("   "), None);
     }
 
     #[test]

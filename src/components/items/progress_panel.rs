@@ -37,7 +37,13 @@ pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) 
 
     if placement.progress_mode == ProgressMode::Single {
         return rsx! {
-            SingleProgress { item_id, category_id, subcategory_id, status: placement.status }
+            SingleProgress {
+                item_id,
+                category_id,
+                subcategory_id,
+                status: placement.status,
+                resume_at: placement.resume_at,
+            }
         };
     }
 
@@ -85,7 +91,7 @@ pub fn ProgressPanel(item_id: usize, category_id: usize, subcategory_id: usize) 
 /// Fiche simple (un film…) : pas de liste, l'œuvre est terminée ou pas.
 /// Le statut se change ici d'un clic, ou dans le sélecteur de statut.
 #[component]
-fn SingleProgress(item_id: usize, category_id: usize, subcategory_id: usize, status: ItemStatus) -> Element {
+fn SingleProgress(item_id: usize, category_id: usize, subcategory_id: usize, status: ItemStatus, resume_at: Option<String>) -> Element {
     let i18n_text = use_texts();
     let mut item_store = use_context::<Signal<ItemStore>>();
     let mut set_status = move |status: ItemStatus| {
@@ -101,6 +107,15 @@ fn SingleProgress(item_id: usize, category_id: usize, subcategory_id: usize, sta
                     button { r#type: "button", onclick: move |_| set_status(ItemStatus::New), "{i18n_text.unmark_done}" }
                 } else {
                     button { r#type: "button", class: "primary-btn", onclick: move |_| set_status(ItemStatus::Done), "✓ {i18n_text.mark_done}" }
+                    label { class: "progress-single-resume",
+                        "{i18n_text.resume_at_label}"
+                        ResumeInput {
+                            value: resume_at,
+                            onsave: move |value: String| {
+                                item_store.write().set_placement_resume_at(item_id, category_id, subcategory_id, &value);
+                            },
+                        }
+                    }
                 }
             }
             button {
@@ -456,6 +471,9 @@ fn ProgressNodeRow(
                         if let Some(duration) = duration {
                             span { class: "progress-card-duration", "{duration}" }
                         }
+                        if let Some(resume_at) = &node.resume_at {
+                            span { class: "progress-card-resume", title: "{i18n_text.resume_at_label}", "▶ {resume_at}" }
+                        }
                     }
                     span { class: "progress-card-title",
                         "{node.title}"
@@ -473,6 +491,7 @@ fn ProgressNodeRow(
                             title: node.title.clone(),
                             image_url: node.image_url.clone(),
                             fields: node.fields.clone(),
+                            resume_at: node.resume_at.clone(),
                             onclose: move |_| editing_card.set(None),
                         }
                     }
@@ -618,6 +637,14 @@ fn ProgressNodeRow(
                     if is_new {
                         span { class: "progress-new-badge", "{i18n_text.new_badge}" }
                     }
+                    ResumeInput {
+                        value: node.resume_at.clone(),
+                        onsave: move |value: String| {
+                            item_store
+                                .write()
+                                .set_progress_node_resume_at(item_id, category_id, subcategory_id, node_id, &value);
+                        },
+                    }
                     button {
                         r#type: "button",
                         class: "progress-text-watch",
@@ -669,6 +696,7 @@ fn ProgressCardConfigModal(
     title: String,
     image_url: Option<String>,
     fields: Vec<ItemInfoField>,
+    resume_at: Option<String>,
     onclose: EventHandler<()>,
 ) -> Element {
     let i18n_text = use_texts();
@@ -704,6 +732,17 @@ fn ProgressCardConfigModal(
                     kind: ProgressNodeKind::Card,
                     fields: fields.clone(),
                     image_url: image_url.clone(),
+                }
+                div { class: "item-form-field",
+                    label { "{i18n_text.resume_at_label}" }
+                    ResumeInput {
+                        value: resume_at,
+                        onsave: move |value: String| {
+                            item_store
+                                .write()
+                                .set_progress_node_resume_at(item_id, category_id, subcategory_id, node_id, &value);
+                        },
+                    }
                 }
                 div { class: "modal-actions",
                     DeleteButton {
@@ -1167,6 +1206,24 @@ fn GroupCreateForm(item_id: usize, category_id: usize, subcategory_id: usize, pa
                 },
                 "+"
             }
+        }
+    }
+}
+/// Champ « reprendre à » (« 34:12 », « p. 45 ») : enregistré quand on
+/// valide (Entrée) ou qu'on quitte le champ, pas à chaque touche, pour ne
+/// pas changer le statut de l'œuvre pendant la saisie.
+#[component]
+fn ResumeInput(value: Option<String>, onsave: EventHandler<String>) -> Element {
+    let i18n_text = use_texts();
+    let has_value = value.is_some();
+    rsx! {
+        input {
+            r#type: "text",
+            class: if has_value { "progress-resume-input progress-resume-input--set" } else { "progress-resume-input" },
+            value: value.unwrap_or_default(),
+            placeholder: "▶ {i18n_text.resume_at_placeholder}",
+            title: "{i18n_text.resume_at_hint}",
+            onchange: move |event| onsave.call(event.value()),
         }
     }
 }

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::source_import;
-use crate::models::{ImportedFrom, Item, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind, ItemOrientation, ItemPlacement, ItemStatus, ProgressMode, WorkStatus, ItemTab};
+use crate::models::{clean_resume_at, ImportedFrom, Item, ItemInfoField, ProgressLink, ProgressNode, ProgressNodeKind, ItemOrientation, ItemPlacement, ItemStatus, ProgressMode, WorkStatus, ItemTab};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct ItemStore {
@@ -101,11 +101,41 @@ impl ItemStore {
         }
     }
 
-    /// Change le statut d'un placement précis d'un élément.
+    /// Change le statut d'un placement précis d'un élément. Terminé efface
+    /// la position « reprendre à » de la fiche simple.
     pub fn set_placement_status(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, status: ItemStatus) {
         if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
             placement.status = status;
+            if status == ItemStatus::Done {
+                placement.resume_at = None;
+            }
         }
+    }
+
+    /// Position « reprendre à » d'une fiche simple. En noter une passe
+    /// l'œuvre en cours si elle était Nouvelle, À faire ou Terminée.
+    pub fn set_placement_resume_at(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, value: &str) {
+        if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
+            placement.resume_at = clean_resume_at(value);
+            if placement.resume_at.is_some() && matches!(placement.status, ItemStatus::New | ItemStatus::Planned | ItemStatus::Done) {
+                placement.status = ItemStatus::InProgress;
+            }
+        }
+    }
+
+    /// Position « reprendre à » d'un élément de la liste. En noter une
+    /// décoche l'élément (on est en train de le voir ou le lire) et compte
+    /// l'œuvre comme commencée.
+    pub fn set_progress_node_resume_at(&mut self, item_id: usize, category_id: usize, subcategory_id: usize, node_id: usize, value: &str) {
+        if let Some(placement) = self.find_placement_mut(item_id, category_id, subcategory_id) {
+            if let Some(node) = placement.progress.iter_mut().find(|n| n.id == node_id) {
+                node.resume_at = clean_resume_at(value);
+                if node.resume_at.is_some() {
+                    node.is_done = false;
+                }
+            }
+        }
+        self.recompute_placement_status(item_id, category_id, subcategory_id);
     }
 
     /// Passe un placement en liste ou en fiche simple. Seulement quand il
@@ -196,6 +226,7 @@ impl ItemStore {
             redirect_links: Vec::new(),
             is_new: false,
             new_since: None,
+            resume_at: None,
         });
         self.recompute_placement_status(item_id, category_id, subcategory_id);
         Some(next_id)
@@ -227,6 +258,9 @@ impl ItemStore {
             if let Some(node) = placement.progress.iter_mut().find(|n| n.id == node_id) {
                 node.is_done = is_done;
                 node.is_new = false;
+                if is_done {
+                    node.resume_at = None;
+                }
             }
         }
         self.recompute_placement_status(item_id, category_id, subcategory_id);
@@ -253,6 +287,9 @@ impl ItemStore {
                     node.is_new = false;
                     if node.kind != ProgressNodeKind::Group {
                         node.is_done = is_done;
+                        if is_done {
+                            node.resume_at = None;
+                        }
                     }
                 }
             }

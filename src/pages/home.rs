@@ -1,8 +1,8 @@
 use dioxus::prelude::*;
 
 use crate::components::sources::SourceCatalogPanel;
-use crate::i18n::{use_texts, Language};
-use crate::models::{Category, Item, ItemPlacement, ItemStatus};
+use crate::i18n::{use_texts, Language, Texts};
+use crate::models::{Category, Item, ItemPlacement, ItemStatus, ProgressNode};
 use crate::routes::Route;
 use crate::source_import;
 use crate::state::{CategoryStore, ItemStore, SourceStore};
@@ -33,9 +33,24 @@ struct ContinueEntry {
     image_url: Option<String>,
     /// Éléments cochés / total, si le placement a une liste.
     progress: Option<(usize, usize)>,
-    /// Premier élément pas encore coché.
-    next_title: Option<String>,
+    /// Où reprendre : l'élément commencé et sa position, sinon le premier
+    /// élément pas encore coché.
+    next_line: Option<String>,
     on_hold: bool,
+}
+
+/// Ligne « où reprendre » d'une œuvre en cours : la position de la fiche
+/// simple, ou le premier élément commencé (avec une position « reprendre
+/// à »), ou à défaut le premier élément pas encore coché.
+fn next_line(i18n_text: &Texts, placement: &ItemPlacement, leaves: &[&ProgressNode]) -> Option<String> {
+    if let Some(position) = &placement.resume_at {
+        return Some((i18n_text.resume_at)(position));
+    }
+    let pending = || leaves.iter().filter(|n| !n.is_done);
+    if let Some((node, position)) = pending().find_map(|n| n.resume_at.as_ref().map(|p| (n, p))) {
+        return Some((i18n_text.resume_item_at)(&node.title, position));
+    }
+    pending().next().map(|n| (i18n_text.next_up)(&n.title))
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -133,7 +148,7 @@ pub fn Home() -> Element {
             subcategory_name,
             image_url: item.image_url.clone(),
             progress: (!leaves.is_empty()).then_some((done, leaves.len())),
-            next_title: leaves.iter().find(|n| !n.is_done).map(|n| n.title.clone()),
+            next_line: next_line(i18n_text, p, &leaves),
             on_hold: p.status == ItemStatus::OnHold,
         })
     });
@@ -321,8 +336,8 @@ fn ContinueCard(entry: ContinueEntry) -> Element {
                             span { class: "home-continue-count", {(i18n_text.progress_count)(done, total)} }
                         }
                     }
-                    if let Some(next_title) = &entry.next_title {
-                        span { class: "home-release-preview", {(i18n_text.next_up)(next_title)} }
+                    if let Some(next_line) = &entry.next_line {
+                        span { class: "home-release-preview", "{next_line}" }
                     }
                 }
             }

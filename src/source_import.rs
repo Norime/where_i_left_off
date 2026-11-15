@@ -167,6 +167,7 @@ fn build_node(
         redirect_links: Vec::new(),
         is_new: false,
         new_since: None,
+        resume_at: None,
     }
 }
 
@@ -248,6 +249,7 @@ pub fn merge_progress(old: &[ProgressNode], fresh: Vec<ProgressNode>, mark_new: 
                 Some(previous) => {
                     node.is_done = previous.is_done;
                     node.redirect_links = previous.redirect_links.clone();
+                    node.resume_at = previous.resume_at.clone();
                     node.is_new = previous.is_new;
                     // Nouveauté d'avant l'ajout de `new_since` : on la date
                     // d'aujourd'hui pour qu'elle finisse par expirer.
@@ -363,8 +365,36 @@ fn title_chain(nodes: &[ProgressNode], node: &ProgressNode) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::extract_text;
+    use super::{extract_text, merge_progress};
+    use crate::models::{ProgressNode, ProgressNodeKind};
     use serde_json::json;
+
+    fn episode(id: usize, title: &str) -> ProgressNode {
+        ProgressNode {
+            id,
+            parent_id: None,
+            kind: ProgressNodeKind::Card,
+            children_kind: None,
+            title: title.to_string(),
+            is_done: false,
+            image_url: None,
+            fields: Vec::new(),
+            redirect_links: Vec::new(),
+            is_new: false,
+            new_since: None,
+            resume_at: None,
+        }
+    }
+
+    #[test]
+    fn reimport_keeps_resume_position() {
+        let mut old = vec![episode(0, "Ép. 1"), episode(1, "Ép. 2")];
+        old[1].resume_at = Some("34:12".to_string());
+        let fresh = vec![episode(0, "Ép. 1"), episode(1, "Ép. 2"), episode(2, "Ép. 3")];
+        let merged = merge_progress(&old, fresh, true, 0);
+        let second = merged.iter().find(|n| n.title == "Ép. 2").unwrap();
+        assert_eq!(second.resume_at.as_deref(), Some("34:12"));
+    }
 
     #[test]
     fn template_alternatives_fall_back_when_a_marker_is_missing() {

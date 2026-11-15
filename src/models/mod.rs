@@ -6,7 +6,7 @@ mod theme;
 mod theme_image;
 mod layout;
 
-pub use item::{Item, ItemOrientation, ItemPlacement, ItemStatus, ProgressMode, ItemType, ItemInfoField, ProgressNode, ProgressNodeKind, ProgressLink, WorkStatus, ItemTab, ImportedFrom};
+pub use item::{clean_resume_at, Item, ItemOrientation, ItemPlacement, ItemStatus, ProgressMode, ItemType, ItemInfoField, ProgressNode, ProgressNodeKind, ProgressLink, WorkStatus, ItemTab, ImportedFrom};
 pub use category::{Category, Subcategory};
 pub use user::{AvatarCrop, User};
 pub use layout::{Layout, MenuPosition};
