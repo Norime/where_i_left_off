@@ -17,7 +17,7 @@ pub use modal::Modal;
 pub use delete_button::DeleteButton;
 pub use inline_add_form::InlineAddForm;
 pub use categories::{Sidebar, CategoryTreeItem, CategorySettingsModal, ManageSourcesModal, TypeFilterDropdown};
-pub use items::{ItemCard, NewItemModal, EditItemModal, AddPlacementModal, TypeCheckboxList, ItemSourceSearch, FetchedItemData, ProgressPanel, TypePickerModal, ItemTabs, ItemInfoPanel};
+pub use items::{ItemCard, NewItemModal, EditItemModal, AddPlacementModal, TypeCheckboxList, ItemSourceSearch, FetchedItemData, ProgressPanel, TypePickerModal, ItemTabs, ItemInfoPanel, UniverseMembership};
 pub use accounts::{AccountTile, AddAccountTile, NewAccountModal, PasswordPromptModal};
 pub use language_select::{LanguageSelect, LanguageFlag};
 pub use url_image_button::UrlImageButton;

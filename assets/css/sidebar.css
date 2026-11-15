@@ -268,3 +268,30 @@
 .category-settings .delete-btn:hover {
     filter: brightness(1.15);
 }
+
+/* Univers, sous les catégories. */
+.sidebar-title--universes {
+    margin-top: 1.4rem;
+}
+.universe-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.3rem;
+}
+.universe-nav-link {
+    display: block;
+    margin: 0 -0.5rem 2px;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    color: var(--category-text);
+    background-color: var(--category-bg);
+    text-decoration: none;
+}
+.universe-nav-link:hover {
+    color: var(--menu-text);
+}
+.universe-nav-link.active {
+    background: var(--menu-highlight);
+    color: var(--menu-text);
+    font-weight: bold;
+}

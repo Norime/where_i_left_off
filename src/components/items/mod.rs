@@ -8,6 +8,7 @@ mod progress_panel;
 mod type_picker_modal;
 mod item_tabs;
 mod item_info_panel;
+mod universe_membership;
 
 pub use item_card::ItemCard;
 pub use new_item_modal::NewItemModal;
@@ -19,3 +20,4 @@ pub use progress_panel::ProgressPanel;
 pub use type_picker_modal::TypePickerModal;
 pub use item_tabs::ItemTabs;
 pub use item_info_panel::ItemInfoPanel;
+pub use universe_membership::UniverseMembership;

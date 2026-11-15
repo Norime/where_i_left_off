@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::AppLayout;
-use crate::pages::{Home, CategoryView, ItemDetail, Profile};
+use crate::pages::{Home, CategoryView, ItemDetail, Profile, UniverseView};
 
 /// Toutes les routes de l'application, une fois connecté.
 ///
@@ -18,6 +18,8 @@ pub enum Route {
         CategoryView { category_id: usize, subcategory_id: usize },
         #[route("/item/:id?:category_id&:subcategory_id")]
         ItemDetail { id: usize, category_id: usize, subcategory_id: usize },
+        #[route("/universe/:id")]
+        UniverseView { id: usize },
     #[end_layout]
     // Réglages du compte en plein écran, avec leur propre menu à gauche.
     #[route("/profile")]

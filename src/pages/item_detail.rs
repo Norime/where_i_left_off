@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use crate::components::{AddPlacementModal, DeleteButton, EditItemModal, ItemInfoPanel, TypePickerModal, ItemTabs};
+use crate::components::{AddPlacementModal, DeleteButton, EditItemModal, ItemInfoPanel, TypePickerModal, ItemTabs, UniverseMembership};
 use crate::i18n::{use_texts, Language};
 use crate::markdown;
 use crate::models::{ItemStatus, WorkStatus};
@@ -210,6 +210,9 @@ pub fn ItemDetail(id: usize, category_id: usize, subcategory_id: usize) -> Eleme
                         }
 
                         ItemInfoPanel { item_id: item.id, fields: item.extra_info.clone() }
+                        if let Some((cat_id, sub_id)) = effective_placement {
+                            UniverseMembership { item_id: item.id, category_id: cat_id, subcategory_id: sub_id }
+                        }
 
                         div { class: "placement-detail-panel",
                             div { class: "placement-detail-header",

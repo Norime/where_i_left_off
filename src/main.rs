@@ -161,6 +161,7 @@ fn AuthenticatedApp(user_id: usize) -> Element {
     let item_store = use_context_provider(|| Signal::new(persistence::load_items(user_id)));
     let type_store = use_context_provider(|| Signal::new(persistence::load_types(user_id)));
     let source_store = use_context_provider(|| Signal::new(persistence::load_sources(user_id)));
+    let mut universe_store = use_context_provider(|| Signal::new(persistence::load_universes(user_id)));
     update_check::use_update_checker(item_store, source_store);
 
     use_effect(move || {
@@ -177,6 +178,18 @@ fn AuthenticatedApp(user_id: usize) -> Element {
 
     use_effect(move || {
         persistence::save_sources(user_id, &source_store.read());
+    });
+
+    use_effect(move || {
+        persistence::save_universes(user_id, &universe_store.read());
+    });
+
+    // Une fiche supprimée (ou retirée d'une catégorie) quitte ses univers.
+    use_effect(move || {
+        let items = item_store.read();
+        if universe_store.peek().has_missing_entries(&items.items) {
+            universe_store.write().remove_missing_entries(&items.items);
+        }
     });
 
     rsx! {
