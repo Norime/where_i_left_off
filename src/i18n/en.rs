@@ -79,6 +79,7 @@ pub static TEXTS: Texts = Texts {
     info_none: "No info yet.",
     suggested_source: "Suggested",
     universes: "Universes",
+    universes_in_progress: "Universes in progress",
     new_universe: "New universe",
     order_release: "Release",
     order_manual: "Chronological",

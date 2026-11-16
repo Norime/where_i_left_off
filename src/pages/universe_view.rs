@@ -90,10 +90,9 @@ pub fn UniverseView(id: usize) -> Element {
             })
         })
         .collect();
-    let total = rows.len();
-    let done = rows.iter().filter(|r| r.status == ItemStatus::Done).count();
-    // Prochain : la première œuvre pas terminée ni abandonnée.
-    let next = rows.iter().find(|r| !matches!(r.status, ItemStatus::Done | ItemStatus::Dropped)).cloned();
+    let progress = universe.progress(&items);
+    let (done, total) = (progress.done, progress.total);
+    let next = progress.next.and_then(|entry| rows.iter().find(|r| r.entry_id == entry.id).cloned());
     let percent = if total > 0 { done * 100 / total } else { 0 };
 
     // Recherche d'ajout : fiches dont le titre contient le texte, un

@@ -2,10 +2,10 @@ use dioxus::prelude::*;
 
 use crate::components::sources::SourceCatalogPanel;
 use crate::i18n::{use_texts, Language, Texts};
-use crate::models::{Category, Item, ItemPlacement, ItemStatus, ProgressMode, ProgressNode};
+use crate::models::{entry_placement, Category, Item, ItemPlacement, ItemStatus, ProgressMode, ProgressNode};
 use crate::routes::Route;
 use crate::source_import;
-use crate::state::{CategoryStore, ItemStore, SourceStore};
+use crate::state::{CategoryStore, ItemStore, SourceStore, UniverseStore};
 use crate::update_check::{self, StartUpdateCheck, UpdateCheckState};
 
 /// Une œuvre (un placement précis) qui a des éléments nouveaux non vus.
@@ -61,6 +61,39 @@ fn progress_summary(i18n_text: &Texts, placement: &ItemPlacement, leaves: &[&Pro
         }
         _ => (None, None),
     }
+}
+
+/// Un univers commencé qui a encore une œuvre à voir.
+#[derive(Clone, PartialEq)]
+struct UniverseInProgress {
+    universe_id: usize,
+    name: String,
+    done: usize,
+    total: usize,
+    next_title: String,
+    image_url: Option<String>,
+}
+
+/// Univers en cours : au moins une œuvre commencée ou terminée, et une
+/// prochaine œuvre à voir dans l'ordre affiché.
+fn universes_in_progress(universes: &UniverseStore, items: &[Item]) -> Vec<UniverseInProgress> {
+    universes
+        .universes
+        .iter()
+        .filter_map(|universe| {
+            let progress = universe.progress(items);
+            let next = progress.next.filter(|_| progress.started)?;
+            let (item, _) = entry_placement(&next, items)?;
+            Some(UniverseInProgress {
+                universe_id: universe.id,
+                name: universe.name.clone(),
+                done: progress.done,
+                total: progress.total,
+                next_title: item.title.clone(),
+                image_url: item.image_url.clone(),
+            })
+        })
+        .collect()
 }
 
 /// Ligne « où reprendre » d'une œuvre en cours : la position de la fiche
@@ -129,6 +162,7 @@ pub fn Home() -> Element {
     let item_store = use_context::<Signal<ItemStore>>();
     let category_store = use_context::<Signal<CategoryStore>>();
     let source_store = use_context::<Signal<SourceStore>>();
+    let universe_store = use_context::<Signal<UniverseStore>>();
     let check_state = use_context::<Signal<UpdateCheckState>>();
     let checker = use_coroutine_handle::<StartUpdateCheck>();
 
@@ -180,6 +214,7 @@ pub fn Home() -> Element {
     for (_, _, entries) in continue_sections.iter_mut() {
         entries.sort_by_key(|entry| entry.on_hold);
     }
+    let universes = universes_in_progress(&universe_store.read(), &item_store.read().items);
 
     let progress_percent = if state.total > 0 { state.done * 100 / state.total } else { 0 };
 
@@ -209,8 +244,18 @@ pub fn Home() -> Element {
             if tab() == HomeTab::Sources {
                 SourceCatalogPanel {}
             } else if tab() == HomeTab::Continue {
-                if continue_sections.is_empty() {
+                if continue_sections.is_empty() && universes.is_empty() {
                     p { class: "empty-state", "{i18n_text.no_continue}" }
+                }
+                if !universes.is_empty() {
+                    section { class: "home-section",
+                        h2 { class: "home-section-title", "{i18n_text.universes_in_progress}" }
+                        div { class: "home-release-grid",
+                            for universe in universes {
+                                UniverseCard { key: "universe-{universe.universe_id}", universe }
+                            }
+                        }
+                    }
                 }
                 for (category_id , category_name , entries) in continue_sections {
                     section { key: "continue-{category_id}", class: "home-section",
@@ -325,6 +370,40 @@ fn NewReleaseCard(release: NewRelease) -> Element {
                 class: "home-release-seen",
                 onclick: move |_| item_store.write().clear_new_flags(item_id, category_id, subcategory_id),
                 "{i18n_text.mark_as_seen}"
+            }
+        }
+    }
+}
+
+/// Carte d'un univers en cours : prochaine œuvre (image et titre) et
+/// avancement ; mène à la page de l'univers.
+#[component]
+fn UniverseCard(universe: UniverseInProgress) -> Element {
+    let i18n_text = use_texts();
+    let image_style = universe
+        .image_url
+        .as_ref()
+        .map(|url| format!("background-image: url('{url}');"))
+        .unwrap_or_default();
+    let percent = universe.done * 100 / universe.total.max(1);
+
+    rsx! {
+        div { class: "home-release",
+            Link {
+                class: "home-release-link",
+                to: Route::UniverseView { id: universe.universe_id },
+                div { class: "home-release-image", style: "{image_style}" }
+                div { class: "home-release-body",
+                    span { class: "home-release-subcategory", "{i18n_text.universes}" }
+                    span { class: "home-release-title", "{universe.name}" }
+                    div { class: "home-continue-progress",
+                        div { class: "home-check-bar home-continue-bar",
+                            div { class: "home-check-bar-fill", width: "{percent}%" }
+                        }
+                        span { class: "home-continue-count", {(i18n_text.progress_count)(universe.done, universe.total)} }
+                    }
+                    span { class: "home-release-preview", {(i18n_text.universe_next)(&universe.next_title)} }
+                }
             }
         }
     }

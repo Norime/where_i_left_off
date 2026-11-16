@@ -172,6 +172,7 @@ pub struct Texts {
     pub info_none: &'static str,
     pub suggested_source: &'static str,
     pub universes: &'static str,
+    pub universes_in_progress: &'static str,
     pub new_universe: &'static str,
     pub order_release: &'static str,
     pub order_manual: &'static str,

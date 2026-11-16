@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::{Item, ItemInfoField, ItemPlacement};
+use crate::models::{Item, ItemInfoField, ItemPlacement, ItemStatus};
 
 /// Un univers (MCU, Star Wars…) : des références vers des fiches
 /// existantes, toutes catégories confondues, sans les copier, rangées selon
@@ -144,6 +144,41 @@ impl Universe {
     }
 }
 
+/// Avancement d'un univers dans son ordre affiché : œuvres terminées,
+/// total, et prochaine œuvre (la première ni terminée ni abandonnée).
+#[derive(Clone, Debug, PartialEq)]
+pub struct UniverseProgress {
+    pub done: usize,
+    pub total: usize,
+    pub next: Option<UniverseEntry>,
+    /// Au moins une œuvre terminée, en cours ou en pause.
+    pub started: bool,
+}
+
+impl Universe {
+    pub fn progress(&self, items: &[Item]) -> UniverseProgress {
+        let ordered = self.current_order().map(|order| self.ordered_entries(order, items)).unwrap_or_default();
+        let statuses: Vec<(UniverseEntry, ItemStatus)> = ordered
+            .into_iter()
+            .filter_map(|entry| {
+                let status = entry_placement(&entry, items)?.1.status;
+                Some((entry, status))
+            })
+            .collect();
+        UniverseProgress {
+            done: statuses.iter().filter(|(_, s)| *s == ItemStatus::Done).count(),
+            total: statuses.len(),
+            next: statuses
+                .iter()
+                .find(|(_, s)| !matches!(s, ItemStatus::Done | ItemStatus::Dropped))
+                .map(|(e, _)| e.clone()),
+            started: statuses
+                .iter()
+                .any(|(_, s)| matches!(s, ItemStatus::Done | ItemStatus::InProgress | ItemStatus::OnHold)),
+        }
+    }
+}
+
 /// Placement suivi par une entrée, s'il existe encore.
 pub fn entry_placement<'a>(entry: &UniverseEntry, items: &'a [Item]) -> Option<(&'a Item, &'a ItemPlacement)> {
     let item = items.iter().find(|i| i.id == entry.item_id)?;
@@ -205,5 +240,20 @@ mod tests {
         let manual = universe.orders[1].clone();
         let order: Vec<usize> = universe.ordered_entries(&manual, &items).iter().map(|e| e.item_id).collect();
         assert_eq!(order, vec![2, 0, 1]);
+    }
+
+    #[test]
+    fn progress_skips_dropped_works_for_next() {
+        let mut items = vec![item(0, None), item(1, None), item(2, None)];
+        items[0].placements[0].status = ItemStatus::Done;
+        items[1].placements[0].status = ItemStatus::Dropped;
+        let mut universe = Universe::new(0, "MCU".into(), "Sortie".into(), "Chrono".into());
+        for id in 0..3 {
+            universe.entries.push(UniverseEntry { id, item_id: id, category_id: 1, subcategory_id: 1 });
+        }
+        universe.selected_order = 1;
+        let progress = universe.progress(&items);
+        assert_eq!((progress.done, progress.total, progress.started), (1, 3, true));
+        assert_eq!(progress.next.map(|e| e.item_id), Some(2));
     }
 }
