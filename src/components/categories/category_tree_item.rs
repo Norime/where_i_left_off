@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use std::collections::HashSet;
 
-use crate::components::{CategorySettingsModal, InlineAddForm};
+use crate::components::{CategorySettingsModal, Modal};
 use crate::i18n::{use_texts, Language};
 use crate::models::{Category, SubcategoryTemplate};
 use crate::routes::Route;
@@ -89,35 +89,88 @@ pub fn CategoryTreeItem(category: Category, expanded: Signal<HashSet<usize>>) ->
     }
 }
 
-/// Ajout d'une sous-catégorie : son nom, et le modèle qui préréglera ses
-/// fiches (aucun par défaut, modifiable ensuite dans sa configuration).
+/// Ajout d'une sous-catégorie : un bouton pleine largeur qui ouvre la
+/// pop-up demandant son nom et son modèle.
 #[component]
 fn SubcategoryAddForm(category_id: usize) -> Element {
     let i18n_text = use_texts();
-    let mut category_store = use_context::<Signal<CategoryStore>>();
-    let mut template = use_signal(|| None::<SubcategoryTemplate>);
-    let current = template();
+    let mut open = use_signal(|| false);
 
     rsx! {
-        div { class: "subcategory-add",
-            InlineAddForm {
-                placeholder: "{i18n_text.new_subcategory}",
-                onsubmit: move |name: String| {
-                    category_store.write().add_subcategory(category_id, name, template());
-                    template.set(None);
+        button {
+            r#type: "button",
+            class: "sidebar-add-btn",
+            title: "{i18n_text.new_subcategory}",
+            onclick: move |_| open.set(true),
+            "+"
+        }
+        if open() {
+            SubcategoryCreateModal { category_id, onclose: move |_| open.set(false) }
+        }
+    }
+}
+
+/// Pop-up de création d'une sous-catégorie : son nom, et le modèle qui
+/// préréglera ses fiches (aucun par défaut, modifiable ensuite dans sa
+/// configuration).
+#[component]
+fn SubcategoryCreateModal(category_id: usize, onclose: EventHandler<()>) -> Element {
+    let i18n_text = use_texts();
+    let mut category_store = use_context::<Signal<CategoryStore>>();
+    let mut name = use_signal(String::new);
+    let mut template = use_signal(|| None::<SubcategoryTemplate>);
+    let current = template();
+    let is_empty = name.read().trim().is_empty();
+
+    rsx! {
+        Modal { onclose: move |_| onclose.call(()),
+            h2 { "{i18n_text.new_subcategory}" }
+            form {
+                class: "new-item-modal-form",
+                onsubmit: move |event: FormEvent| {
+                    event.prevent_default();
+                    let new_name = name.read().trim().to_string();
+                    if new_name.is_empty() {
+                        return;
+                    }
+                    category_store.write().add_subcategory(category_id, new_name, template());
+                    onclose.call(());
                 },
-            }
-            select {
-                class: "subcategory-template-select",
-                title: "{i18n_text.template_hint}",
-                onchange: move |event| template.set(SubcategoryTemplate::from_key(&event.value())),
-                option { value: "", selected: current.is_none(), "{i18n_text.template_label} : {i18n_text.template_none}" }
-                for option_template in SubcategoryTemplate::ALL {
-                    option {
-                        key: "{option_template.key()}",
-                        value: "{option_template.key()}",
-                        selected: current == Some(option_template),
-                        "{i18n_text.template_label} : {i18n_text.template_name(option_template)}"
+                label {
+                    "{i18n_text.name_label}"
+                    input {
+                        autofocus: true,
+                        value: "{name}",
+                        oninput: move |e| name.set(e.value()),
+                    }
+                }
+                label {
+                    "{i18n_text.template_label}"
+                    select {
+                        onchange: move |e| template.set(SubcategoryTemplate::from_key(&e.value())),
+                        option { value: "", selected: current.is_none(), "{i18n_text.template_none}" }
+                        for option_template in SubcategoryTemplate::ALL {
+                            option {
+                                key: "{option_template.key()}",
+                                value: "{option_template.key()}",
+                                selected: current == Some(option_template),
+                                "{i18n_text.template_name(option_template)}"
+                            }
+                        }
+                    }
+                    span { class: "translation-hint", "{i18n_text.template_hint}" }
+                }
+                div { class: "modal-actions",
+                    button {
+                        r#type: "button",
+                        onclick: move |_| onclose.call(()),
+                        "{i18n_text.cancel}"
+                    }
+                    button {
+                        r#type: "submit",
+                        class: "primary-btn",
+                        disabled: is_empty,
+                        "{i18n_text.create}"
                     }
                 }
             }

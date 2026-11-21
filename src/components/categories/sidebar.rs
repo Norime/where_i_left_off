@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use std::collections::HashSet;
-use crate::components::{CategoryTreeItem, InlineAddForm};
+use crate::components::{CategoryTreeItem, Modal};
 use crate::i18n::use_texts;
 use crate::routes::Route;
 use crate::state::{CategoryStore, UniverseStore, UserStore};
@@ -47,8 +47,8 @@ pub fn Sidebar() -> Element {
                     }
                 }
             }
-            InlineAddForm {
-                placeholder: "{i18n_text.new_category}",
+            NameCreateButton {
+                title: "{i18n_text.new_category}",
                 onsubmit: move |name: String| {
                     store.write().add_category(name);
                 },
@@ -66,8 +66,8 @@ pub fn Sidebar() -> Element {
                     }
                 }
             }
-            InlineAddForm {
-                placeholder: "{i18n_text.new_universe}",
+            NameCreateButton {
+                title: "{i18n_text.new_universe}",
                 onsubmit: move |name: String| {
                     let id = universe_store.write().add_universe(
                         name,
@@ -76,6 +76,68 @@ pub fn Sidebar() -> Element {
                     );
                     navigator().push(Route::UniverseView { id });
                 },
+            }
+        }
+    }
+}
+
+/// Bouton "+" pleine largeur qui ouvre une pop-up demandant un nom, puis
+/// appelle `onsubmit` avec le nom saisi au clic sur "Créer".
+#[component]
+fn NameCreateButton(title: String, onsubmit: EventHandler<String>) -> Element {
+    let i18n_text = use_texts();
+    let mut open = use_signal(|| false);
+    let mut name = use_signal(String::new);
+    let is_empty = name.read().trim().is_empty();
+    let mut close = move || {
+        open.set(false);
+        name.set(String::new());
+    };
+
+    rsx! {
+        button {
+            r#type: "button",
+            class: "sidebar-add-btn",
+            title: "{title}",
+            onclick: move |_| open.set(true),
+            "+"
+        }
+        if open() {
+            Modal { onclose: move |_| close(),
+                h2 { "{title}" }
+                form {
+                    class: "new-item-modal-form",
+                    onsubmit: move |event: FormEvent| {
+                        event.prevent_default();
+                        let new_name = name.read().trim().to_string();
+                        if new_name.is_empty() {
+                            return;
+                        }
+                        onsubmit.call(new_name);
+                        close();
+                    },
+                    label {
+                        "{i18n_text.name_label}"
+                        input {
+                            autofocus: true,
+                            value: "{name}",
+                            oninput: move |e| name.set(e.value()),
+                        }
+                    }
+                    div { class: "modal-actions",
+                        button {
+                            r#type: "button",
+                            onclick: move |_| close(),
+                            "{i18n_text.cancel}"
+                        }
+                        button {
+                            r#type: "submit",
+                            class: "primary-btn",
+                            disabled: is_empty,
+                            "{i18n_text.create}"
+                        }
+                    }
+                }
             }
         }
     }
